@@ -1,0 +1,158 @@
+import SwiftUI
+
+struct HistorySheet: View {
+    @ObservedObject var store: BrowserStore
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        Group {
+            if store.history.isEmpty {
+                ContentUnavailable("No history yet", systemImage: "clock.arrow.circlepath", message: "Pages you visit appear here. History never leaves your device.")
+            } else {
+                List {
+                    ForEach(store.history) { visit in
+                        Button {
+                            if let url = URL(string: visit.urlString) {
+                                store.loadURL(url)
+                                dismiss()
+                            }
+                        } label: {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(visit.title).font(.body)
+                                Text(visit.urlString).font(.caption).foregroundStyle(.secondary).lineLimit(1)
+                            }
+                        }
+                        .foregroundStyle(.primary)
+                    }
+                    .onDelete { store.removeHistory(at: $0) }
+                }
+            }
+        }
+        .navigationTitle("History")
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                if !store.history.isEmpty {
+                    Button("Clear") { store.clearHistory() }
+                }
+            }
+        }
+    }
+}
+
+struct BookmarksSheet: View {
+    @ObservedObject var store: BrowserStore
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        Group {
+            if store.bookmarks.isEmpty {
+                ContentUnavailable("No bookmarks", systemImage: "book", message: "Tap the bookmark icon in the toolbar to save the current page.")
+            } else {
+                List {
+                    ForEach(store.bookmarks) { item in
+                        Button {
+                            if let url = URL(string: item.urlString) {
+                                store.loadURL(url)
+                                dismiss()
+                            }
+                        } label: {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(item.title).font(.body)
+                                Text(item.urlString).font(.caption).foregroundStyle(.secondary).lineLimit(1)
+                            }
+                        }
+                        .foregroundStyle(.primary)
+                        .swipeActions {
+                            Button(role: .destructive) { store.removeBookmark(item) } label: {
+                                Label("Remove", systemImage: "trash")
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        .navigationTitle("Bookmarks")
+    }
+}
+
+struct DownloadsSheet: View {
+    @ObservedObject var store: BrowserStore
+
+    var body: some View {
+        Group {
+            if store.downloads.isEmpty {
+                ContentUnavailable("No downloads", systemImage: "arrow.down.circle", message: "Files downloaded in the browser are saved to the app's Downloads folder.")
+            } else {
+                List {
+                    ForEach(store.downloads) { record in
+                        HStack(spacing: 12) {
+                            Image(systemName: fileIcon(for: record.mimeType))
+                                .font(.title3)
+                                .foregroundStyle(Color.accentColor)
+                                .frame(width: 34)
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(record.title).font(.body).lineLimit(1)
+                                Text(record.fileURL.lastPathComponent).font(.caption).foregroundStyle(.secondary).lineLimit(1)
+                            }
+                            Spacer()
+                            if record.fileExists {
+                                ShareLink(item: record.fileURL) {
+                                    Image(systemName: "square.and.arrow.up")
+                                }
+                                .buttonStyle(.borderless)
+                            }
+                        }
+                        .swipeActions {
+                            Button(role: .destructive) { store.removeDownload(record) } label: {
+                                Label("Delete", systemImage: "trash")
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        .navigationTitle("Downloads")
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                if !store.downloads.isEmpty {
+                    Button("Clear") { store.clearDownloads() }
+                }
+            }
+        }
+    }
+
+    private func fileIcon(for mime: String) -> String {
+        if mime.hasPrefix("image/") { return "photo" }
+        if mime.hasPrefix("video/") { return "film" }
+        if mime.hasPrefix("audio/") { return "music.note" }
+        if mime == "application/pdf" { return "doc.richtext" }
+        return "doc"
+    }
+}
+
+private struct ContentUnavailable: View {
+    let title: String
+    let systemImage: String
+    let message: String
+
+    init(_ title: String, systemImage: String, message: String) {
+        self.title = title
+        self.systemImage = systemImage
+        self.message = message
+    }
+
+    var body: some View {
+        VStack(spacing: 12) {
+            Image(systemName: systemImage)
+                .font(.system(size: 44))
+                .foregroundStyle(.secondary)
+            Text(title).font(.headline)
+            Text(message)
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, 30)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+}

@@ -1,0 +1,18 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "provider": {
+    "genzshop": {
+      "npm": "@ai-sdk/openai-compatible",
+      "name": "GenzShop DeepSeek",
+      "options": {
+        "baseURL": "https://modelapi.vn/v1",
+        "apiKey": "{env:GENZSHOP_API_KEY}"
+      },
+      "models": {
+        "deepseek-v4-flash": {
+          "name": "DeepSeek V4 Flash"
+        }
+      }
+    }
+  }
+}

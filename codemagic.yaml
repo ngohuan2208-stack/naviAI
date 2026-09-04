@@ -1,0 +1,136 @@
+# NaviAI - CodeMagic iOS build configuration.
+#
+# Everything runs on CodeMagic's cloud macOS machines. There is NO need for a
+# local Mac or Xcode: push to GitHub, start the workflow, download the .ipa
+# artifact, sideload it onto your iPhone.
+#
+# Two workflows:
+#   1) ios-unsigned  -> always builds. Produces an UNSIGNED .ipa that you can
+#      re-sign and sideload yourself with Sideloadly / AltStore / your Apple
+#      ID (no Apple developer account required, but 7-day expiry applies).
+#   2) ios-signed    -> uses CodeMagic iOS code-signing. Set up your
+#      certificate + provisioning profile in the CodeMagic UI (see README).
+#      Produces a properly signed .ipa ready to install on registered devices.
+#
+# No signing secrets, certificates or private keys are stored in Git.
+
+workflows:
+  ios-unsigned:
+    name: NaviAI - iOS (unsigned IPA)
+    max_build_duration: 45
+    instance_type: mac_mini_m2
+
+    environment:
+      # 'latest' always maps to an available Xcode on CodeMagic. To pin, replace
+      # with a specific version that CodeMagic offers, e.g. xcode: 16.0
+      xcode: latest
+      # XcodeGen re-generates NaviAI.xcodeproj from project.yml in CI, so the
+      # .xcodeproj is intentionally NOT committed to Git.
+      vars:
+        XCODE_SCHEME: "NaviAI"
+        PROJECT_SPEC: "project.yml"
+
+    scripts:
+      - name: Ensure XcodeGen is available
+        script: |
+          set -e
+          if ! command -v xcodegen >/dev/null 2>&1; then
+            echo "xcodegen not found - installing via Homebrew..."
+            HOMEBREW_NO_AUTO_UPDATE=1 brew install xcodegen
+          fi
+          xcodegen --version
+
+      - name: Generate Xcode project from project.yml
+        script: |
+          cd "$CM_BUILD_DIR"
+          rm -rf "$XCODE_SCHEME.xcodeproj"
+          xcodegen generate --spec "$PROJECT_SPEC"
+
+      - name: Archive (no code signing) and package an unsigned .ipa
+        script: |
+          set -e
+          cd "$CM_BUILD_DIR"
+          rm -rf build
+          xcodebuild \
+            -project "$XCODE_SCHEME.xcodeproj" \
+            -scheme "$XCODE_SCHEME" \
+            -configuration Release \
+            -sdk iphoneos \
+            -archivePath build/NaviAI.xcarchive \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            archive
+
+          # xcodebuild -exportArchive cannot re-sign an unsigned archive, so we
+          # package the .app into an .ipa manually. The result has no signature
+          # and can be re-signed offline with Sideloadly / AltSign using your
+          # own (free or paid) Apple ID.
+          mkdir -p build/ipa/Payload
+          cp -R build/NaviAI.xcarchive/Products/Applications/NaviAI.app build/ipa/Payload/
+          cd build/ipa
+          ditto -c -k --sequesterRsrc --keepParent Payload NaviAI-unsigned.ipa
+          cd "$CM_BUILD_DIR"
+          echo "Unsigned IPA ready: build/ipa/NaviAI-unsigned.ipa"
+
+    artifacts:
+      - build/ipa/*.ipa
+      - build/NaviAI.xcarchive/**/*.dSYM
+
+  ios-signed:
+    name: NaviAI - iOS (signed IPA, via CodeMagic signing)
+    max_build_duration: 45
+    instance_type: mac_mini_m2
+
+    environment:
+      xcode: latest
+      ios_signing:
+        # CodeMagic rewrites signing settings automatically using the
+        # Certificate & Profile you attach in the CodeMagic UI. Nothing here is
+        # stored in Git.
+        distribution_type: development
+        bundle_identifier: com.naviai.app
+      vars:
+        XCODE_SCHEME: "NaviAI"
+        PROJECT_SPEC: "project.yml"
+
+    scripts:
+      - name: Ensure XcodeGen is available
+        script: |
+          set -e
+          if ! command -v xcodegen >/dev/null 2>&1; then
+            echo "xcodegen not found - installing via Homebrew..."
+            HOMEBREW_NO_AUTO_UPDATE=1 brew install xcodegen
+          fi
+          xcodegen --version
+
+      - name: Generate Xcode project from project.yml
+        script: |
+          cd "$CM_BUILD_DIR"
+          rm -rf "$XCODE_SCHEME.xcodeproj"
+          xcodegen generate --spec "$PROJECT_SPEC"
+
+      - name: Archive and export signed .ipa
+        script: |
+          set -e
+          cd "$CM_BUILD_DIR"
+          rm -rf build
+          xcodebuild \
+            -project "$XCODE_SCHEME.xcodeproj" \
+            -scheme "$XCODE_SCHEME" \
+            -configuration Release \
+            -sdk iphoneos \
+            -archivePath build/NaviAI.xcarchive \
+            -allowProvisioningUpdates \
+            archive
+          xcodebuild \
+            -exportArchive \
+            -archivePath build/NaviAI.xcarchive \
+            -exportOptionsPlist <(echo '{"method":"development","compileBitcode":false,"uploadBitcode":false}') \
+            -exportPath build/ipa \
+            -allowProvisioningUpdates
+          echo "Signed IPA ready: build/ipa/*.ipa"
+
+    artifacts:
+      - build/ipa/*.ipa
+      - build/NaviAI.xcarchive/**/*.dSYM

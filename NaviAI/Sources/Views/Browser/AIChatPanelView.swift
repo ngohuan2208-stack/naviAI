@@ -1,0 +1,220 @@
+import SwiftUI
+
+struct AIChatPanelSheet: View {
+    @ObservedObject var store: BrowserStore
+    @EnvironmentObject var app: AppModel
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        NavigationStack {
+            VStack(spacing: 0) {
+                ScrollViewReader { proxy in
+                    ScrollView {
+                        LazyVStack(spacing: 10) {
+                            if store.turns.isEmpty {
+                                emptyState
+                            }
+                            ForEach(store.turns) { turn in
+                                MessageBubble(turn: turn)
+                                    .id(turn.id)
+                            }
+                        }
+                        .padding(12)
+                    }
+                    .onChange(of: store.turns.count) { _ in
+                        if let last = store.turns.last {
+                            withAnimation {
+                                proxy.scrollTo(last.id, anchor: .bottom)
+                            }
+                        }
+                    }
+                }
+
+                if store.isAgentRunning {
+                    HStack(spacing: 10) {
+                        ProgressView()
+                            .controlSize(.small)
+                        Text(store.agentStatus.label)
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                        Spacer()
+                        Button {
+                            store.stopAgent()
+                        } label: {
+                            Label("STOP", systemImage: "stop.fill")
+                                .font(.caption.weight(.heavy))
+                                .padding(.horizontal, 12)
+                                .padding(.vertical, 6)
+                                .background(.red, in: Capsule())
+                                .foregroundStyle(.white)
+                        }
+                        .buttonStyle(.plain)
+                    }
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 8)
+                }
+
+                bottomBar
+            }
+            .navigationTitle("AI Chat")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    if app.providers.activeProvider != nil {
+                        VStack(alignment: .leading, spacing: 0) {
+                            Text(app.providers.activeProvider?.name ?? "")
+                                .font(.caption.weight(.semibold))
+                            Text(app.providers.activeProvider?.model ?? "")
+                                .font(.caption2)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                }
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    HStack(spacing: 14) {
+                        Button {
+                            store.clearChat()
+                        } label: {
+                            Image(systemName: "trash")
+                        }
+                        Button {
+                            dismiss()
+                        } label: {
+                            Image(systemName: "xmark")
+                        }
+                    }
+                }
+            }
+        }
+        .environmentObject(app)
+    }
+
+    private var emptyState: some View {
+        VStack(spacing: 10) {
+            MascotLogoView(size: 60)
+            Text("Ask NaviAI to browse for you")
+                .font(.headline)
+            Text("Example: “Search for the 5 best ways to learn Python and open the best result.”")
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+            Button {
+                store.chatInput = "Tìm cho tôi cách kiếm tiền online."
+                store.submitPrompt(store.chatInput)
+                store.chatInput = ""
+            } label: {
+                Text("Try an example")
+                    .font(.footnote.weight(.semibold))
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 8)
+                    .background(Color.accentColor.opacity(0.15), in: Capsule())
+            }
+            .buttonStyle(.plain)
+            .padding(.top, 4)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.top, 60)
+    }
+
+    private var bottomBar: some View {
+        HStack(spacing: 10) {
+            TextField("Ask NaviAI…", text: $store.chatInput, axis: .vertical)
+                .font(.subheadline)
+                .lineLimit(1...5)
+                .submitLabel(.send)
+                .onSubmit { submit() }
+                .padding(.horizontal, 12)
+                .padding(.vertical, 8)
+                .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+
+            Button {
+                submit()
+            } label: {
+                Image(systemName: "arrow.up")
+                    .font(.system(size: 15, weight: .bold))
+                    .frame(width: 34, height: 34)
+                    .background(canSend ? Color.accentColor : Color(.secondarySystemBackground), in: Circle())
+                    .foregroundStyle(canSend ? .white : Color.secondary)
+            }
+            .buttonStyle(.plain)
+            .disabled(!canSend)
+        }
+        .padding(10)
+        .background(.bar)
+    }
+
+    private var canSend: Bool {
+        !store.chatInput.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && !store.isAgentRunning
+    }
+
+    private func submit() {
+        let text = store.chatInput
+        store.chatInput = ""
+        store.submitPrompt(text)
+    }
+}
+
+// MARK: - Bubble
+
+struct MessageBubble: View {
+    let turn: ChatTurn
+
+    var body: some View {
+        switch turn.kind {
+        case .text:
+            if turn.role == .user {
+                HStack {
+                    Spacer()
+                    Text(turn.text)
+                        .font(.subheadline)
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 10)
+                        .background(Color.accentColor, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+                        .foregroundStyle(.white)
+                }
+            } else {
+                HStack {
+                    Text(turn.text)
+                        .font(.subheadline)
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 10)
+                        .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+                    Spacer()
+                }
+            }
+        case .action:
+            HStack(alignment: .top, spacing: 6) {
+                Image(systemName: "cursorarrow.motionlines")
+                    .font(.caption)
+                    .foregroundStyle(Color.accentColor)
+                    .padding(.top, 2)
+                Text(turn.text)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                Spacer(minLength: 20)
+            }
+            .padding(.horizontal, 6)
+        case .toolResult:
+            HStack(spacing: 6) {
+                Image(systemName: "info.circle")
+                    .font(.caption2)
+                Text(turn.text)
+                    .font(.caption2)
+                    .foregroundStyle(.tertiary)
+                Spacer()
+            }
+            .padding(.horizontal, 6)
+        case .info:
+            HStack(spacing: 6) {
+                Image(systemName: "exclamationmark.circle")
+                    .font(.caption2)
+                Text(turn.text)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                Spacer()
+            }
+            .padding(8)
+            .background(Color(.secondarySystemBackground).opacity(0.5), in: RoundedRectangle(cornerRadius: 12))
+        }
+    }
+}
