@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 struct OnboardingRootView: View {
     var body: some View {

@@ -4,6 +4,10 @@
 # local Mac or Xcode: push to GitHub, start the workflow, download the .ipa
 # artifact, sideload it onto your iPhone.
 #
+# NaviAI.xcodeproj and NaviAI/Info.plist are COMMITTED to Git, so CodeMagic's
+# auto-detection recognizes this as an iOS application and xcodebuild can build
+# it directly - no project generation step is required.
+#
 # Two workflows:
 #   1) ios-unsigned  -> always builds. Produces an UNSIGNED .ipa that you can
 #      re-sign and sideload yourself with Sideloadly / AltStore / your Apple
@@ -24,27 +28,18 @@ workflows:
       # 'latest' always maps to an available Xcode on CodeMagic. To pin, replace
       # with a specific version that CodeMagic offers, e.g. xcode: 16.0
       xcode: latest
-      # XcodeGen re-generates NaviAI.xcodeproj from project.yml in CI, so the
-      # .xcodeproj is intentionally NOT committed to Git.
       vars:
+        XCODE_PROJECT: "NaviAI.xcodeproj"
         XCODE_SCHEME: "NaviAI"
-        PROJECT_SPEC: "project.yml"
 
     scripts:
-      - name: Ensure XcodeGen is available
+      - name: Show detected project & scheme
         script: |
           set -e
-          if ! command -v xcodegen >/dev/null 2>&1; then
-            echo "xcodegen not found - installing via Homebrew..."
-            HOMEBREW_NO_AUTO_UPDATE=1 brew install xcodegen
-          fi
-          xcodegen --version
-
-      - name: Generate Xcode project from project.yml
-        script: |
           cd "$CM_BUILD_DIR"
-          rm -rf "$XCODE_SCHEME.xcodeproj"
-          xcodegen generate --spec "$PROJECT_SPEC"
+          echo "Working dir: $(pwd)"
+          ls -la NaviAI.xcodeproj
+          xcodebuild -project "$XCODE_PROJECT" -list
 
       - name: Archive (no code signing) and package an unsigned .ipa
         script: |
@@ -52,7 +47,7 @@ workflows:
           cd "$CM_BUILD_DIR"
           rm -rf build
           xcodebuild \
-            -project "$XCODE_SCHEME.xcodeproj" \
+            -project "$XCODE_PROJECT" \
             -scheme "$XCODE_SCHEME" \
             -configuration Release \
             -sdk iphoneos \
@@ -91,24 +86,17 @@ workflows:
         distribution_type: development
         bundle_identifier: com.naviai.app
       vars:
+        XCODE_PROJECT: "NaviAI.xcodeproj"
         XCODE_SCHEME: "NaviAI"
-        PROJECT_SPEC: "project.yml"
 
     scripts:
-      - name: Ensure XcodeGen is available
+      - name: Show detected project & scheme
         script: |
           set -e
-          if ! command -v xcodegen >/dev/null 2>&1; then
-            echo "xcodegen not found - installing via Homebrew..."
-            HOMEBREW_NO_AUTO_UPDATE=1 brew install xcodegen
-          fi
-          xcodegen --version
-
-      - name: Generate Xcode project from project.yml
-        script: |
           cd "$CM_BUILD_DIR"
-          rm -rf "$XCODE_SCHEME.xcodeproj"
-          xcodegen generate --spec "$PROJECT_SPEC"
+          echo "Working dir: $(pwd)"
+          ls -la NaviAI.xcodeproj
+          xcodebuild -project "$XCODE_PROJECT" -list
 
       - name: Archive and export signed .ipa
         script: |
@@ -116,17 +104,32 @@ workflows:
           cd "$CM_BUILD_DIR"
           rm -rf build
           xcodebuild \
-            -project "$XCODE_SCHEME.xcodeproj" \
+            -project "$XCODE_PROJECT" \
             -scheme "$XCODE_SCHEME" \
             -configuration Release \
             -sdk iphoneos \
             -archivePath build/NaviAI.xcarchive \
             -allowProvisioningUpdates \
             archive
+          # Write the export options to a file (portable, no shell subshells/heredocs).
+          mkdir -p build
+          printf '%s' '<?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+              <key>method</key>
+              <string>development</string>
+              <key>compileBitcode</key>
+              <false/>
+              <key>uploadBitcode</key>
+              <false/>
+          </dict>
+          </plist>
+          ' > build/exportOptions.plist
           xcodebuild \
             -exportArchive \
             -archivePath build/NaviAI.xcarchive \
-            -exportOptionsPlist <(echo '{"method":"development","compileBitcode":false,"uploadBitcode":false}') \
+            -exportOptionsPlist build/exportOptions.plist \
             -exportPath build/ipa \
             -allowProvisioningUpdates
           echo "Signed IPA ready: build/ipa/*.ipa"

@@ -1,4 +1,5 @@
 import Foundation
+import UIKit
 import WebKit
 
 /// Per-tab owner of a WKWebView. Owns the navigation/session delegates,

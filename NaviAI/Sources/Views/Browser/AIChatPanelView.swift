@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 struct AIChatPanelSheet: View {
     @ObservedObject var store: BrowserStore

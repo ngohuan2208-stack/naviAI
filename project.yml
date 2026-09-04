@@ -1,3 +1,6 @@
+# Optional XcodeGen spec. The committed NaviAI.xcodeproj is the authoritative
+# project used by CodeMagic; this spec is only for regenerating it by hand:
+#   xcodegen generate --spec project.yml
 name: NaviAI
 options:
   bundleIdPrefix: com.naviai

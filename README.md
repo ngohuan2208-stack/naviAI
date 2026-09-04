@@ -44,15 +44,21 @@ NaviAI/
 │   ├── Services/     # LLM networking, Keychain, provider & settings stores
 │   ├── Views/        # Onboarding, browser UI, chat panel, settings
 │   └── Assets.xcassets
-├── project.yml        # XcodeGen spec (drives the whole build)
+├── NaviAI.xcodeproj  # committed iOS project (detectable by CodeMagic)
+│   └── xcshareddata/xcschemes/NaviAI.xcscheme
+├── project.yml        # optional XcodeGen spec (regeneration reference only)
 ├── codemagic.yaml     # CodeMagic CI config (both workflows)
-├── .gitignore         # keeps generated .xcodeproj / Info.plist out of Git
-└── README.md
+├── README.md
+└── .gitignore
 ```
 
-The `.xcodeproj` and `Info.plist` are **generated** by XcodeGen from
-`project.yml` during the CodeMagic build, so they are intentionally not
-committed to Git.
+`NaviAI.xcodeproj` and `NaviAI/Info.plist` are **committed to Git**, so
+CodeMagic's auto-detection recognizes this repository as an iOS application and
+`xcodebuild` builds it **directly** — no project generation step, no XcodeGen,
+no local Xcode.
+
+> `project.yml` is kept purely as an optional XcodeGen spec if you ever want to
+> regenerate the `.xcodeproj` by hand; it is not used by CodeMagic.
 
 ---
 
@@ -73,6 +79,9 @@ No Xcode command is ever run on your machine.
 ## Building on CodeMagic (setup)
 
 1. In CodeMagic, connect your GitHub repo (**Settings → Integrations → GitHub**).
+   Because `NaviAI.xcodeproj` is committed, CodeMagic auto-detects the project as
+   an **iOS application** (if an old scan already failed, click **Set manually** /
+   refresh, or re-scan — the project type is `iOS`).
 2. CodeMagic auto-detects `codemagic.yaml`; the two workflows appear:
    - **`NaviAI - iOS (unsigned IPA)`** — always builds, no signing configured.
    - **`NaviAI - iOS (signed IPA, via CodeMagic signing)`** — needs signing

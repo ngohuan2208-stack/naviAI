@@ -1,0 +1,433 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 56;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		DC4ADE1F8C9AB25C39D63483 /* NaviAIApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0D4ED7C3C47195A2E3A03E7 /* NaviAIApp.swift */; };
+		E66E25E7C9A00705D4667FAA /* AgentLoop.swift in Sources */ = {isa = PBXBuildFile; fileRef = EBE27D9D56E0085688C58763 /* AgentLoop.swift */; };
+		F718089FDD4C251D60E51F6F /* AgentTools.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDAFB9AE972BAE168D236A6F /* AgentTools.swift */; };
+		E6EC1598228C746548C35F3F /* AgentVision.swift in Sources */ = {isa = PBXBuildFile; fileRef = C4A5E3C1C27FE9B3BED57731 /* AgentVision.swift */; };
+		59B5A04B0A23F0ADA2F568BB /* BrowserJavaScript.swift in Sources */ = {isa = PBXBuildFile; fileRef = F214BBF53CAC33CDD5E33C79 /* BrowserJavaScript.swift */; };
+		0ED44F8A9F68BC549ED1A27C /* BrowserStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0866F29BA6100594AA1B07BA /* BrowserStore.swift */; };
+		60AA99133C576855C2DF7E2A /* WebCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 41171AA6A083093A5A7E56A7 /* WebCoordinator.swift */; };
+		169039D0F6BA0470A41300C0 /* WebSurfaceView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 59F36B642B8AB22928C7D135 /* WebSurfaceView.swift */; };
+		6F941ED28C5D10AEA0C6984C /* Chat.swift in Sources */ = {isa = PBXBuildFile; fileRef = 05AE51C3ADB78399FA309299 /* Chat.swift */; };
+		6AA07B50276FD424AB3BC9A9 /* Library.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC4692BBBC8E142AB89E2D87 /* Library.swift */; };
+		9CF353351F87B50E42048106 /* Provider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2E89B7B3F5B588F13862495C /* Provider.swift */; };
+		9A807FDFB72361E35ACC8948 /* KeychainService.swift in Sources */ = {isa = PBXBuildFile; fileRef = A63CF6BD3D8F94EF60B271DA /* KeychainService.swift */; };
+		2137531FF6A46B9C7BEB1A4E /* LLMService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 421604D24880254492FE10E9 /* LLMService.swift */; };
+		1962747FF207D61CFA5326FD /* ProviderStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = B526EBC62EAA360B9D576418 /* ProviderStore.swift */; };
+		8FAAEB113B3C0924556A25C9 /* SettingsStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 795EAE8A26C8155902025912 /* SettingsStore.swift */; };
+		A18D11B5EEB5FF516F3F245C /* AIChatPanelView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 464775AD4126A9D8CAD6220B /* AIChatPanelView.swift */; };
+		A3A290DF5B87A37B298C64F1 /* AICursorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 12770B846F4CB54F0401E6A6 /* AICursorView.swift */; };
+		4843178C0EFBF7D16DA291B7 /* BrowserHomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 38185D034E02E01564F46A5F /* BrowserHomeView.swift */; };
+		6AA4EAB2339D63EAE766A94B /* LibraryViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7330579E4D55F162ED221B09 /* LibraryViews.swift */; };
+		ABBCF7DA24D208CE67F18FB9 /* ChooseAIView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FE4BE8EEE5B9039E236734F3 /* ChooseAIView.swift */; };
+		B2991BAF635262415D6A3B90 /* ProviderConfigView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D486F6A6F7EA3456FCBC9B93 /* ProviderConfigView.swift */; };
+		D4EE014303B395ADDCE7C9EA /* WelcomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F113DA6816F4972B582A4DFD /* WelcomeView.swift */; };
+		D3CCEB6937EF83B1403997E5 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A47C0FE76CEDC40A7426DF7 /* SettingsView.swift */; };
+		1A2E7EAB97843AC2A0A5CF9C /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 7548CB370740B54B0CBCC0D6 /* Assets.xcassets */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		A0D4ED7C3C47195A2E3A03E7 /* NaviAIApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NaviAIApp.swift; sourceTree = "<group>"; };
+		EBE27D9D56E0085688C58763 /* AgentLoop.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AgentLoop.swift; sourceTree = "<group>"; };
+		FDAFB9AE972BAE168D236A6F /* AgentTools.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AgentTools.swift; sourceTree = "<group>"; };
+		C4A5E3C1C27FE9B3BED57731 /* AgentVision.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AgentVision.swift; sourceTree = "<group>"; };
+		F214BBF53CAC33CDD5E33C79 /* BrowserJavaScript.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BrowserJavaScript.swift; sourceTree = "<group>"; };
+		0866F29BA6100594AA1B07BA /* BrowserStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BrowserStore.swift; sourceTree = "<group>"; };
+		41171AA6A083093A5A7E56A7 /* WebCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebCoordinator.swift; sourceTree = "<group>"; };
+		59F36B642B8AB22928C7D135 /* WebSurfaceView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebSurfaceView.swift; sourceTree = "<group>"; };
+		05AE51C3ADB78399FA309299 /* Chat.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Chat.swift; sourceTree = "<group>"; };
+		AC4692BBBC8E142AB89E2D87 /* Library.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Library.swift; sourceTree = "<group>"; };
+		2E89B7B3F5B588F13862495C /* Provider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Provider.swift; sourceTree = "<group>"; };
+		A63CF6BD3D8F94EF60B271DA /* KeychainService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeychainService.swift; sourceTree = "<group>"; };
+		421604D24880254492FE10E9 /* LLMService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LLMService.swift; sourceTree = "<group>"; };
+		B526EBC62EAA360B9D576418 /* ProviderStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProviderStore.swift; sourceTree = "<group>"; };
+		795EAE8A26C8155902025912 /* SettingsStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsStore.swift; sourceTree = "<group>"; };
+		464775AD4126A9D8CAD6220B /* AIChatPanelView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIChatPanelView.swift; sourceTree = "<group>"; };
+		12770B846F4CB54F0401E6A6 /* AICursorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AICursorView.swift; sourceTree = "<group>"; };
+		38185D034E02E01564F46A5F /* BrowserHomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BrowserHomeView.swift; sourceTree = "<group>"; };
+		7330579E4D55F162ED221B09 /* LibraryViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibraryViews.swift; sourceTree = "<group>"; };
+		FE4BE8EEE5B9039E236734F3 /* ChooseAIView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChooseAIView.swift; sourceTree = "<group>"; };
+		D486F6A6F7EA3456FCBC9B93 /* ProviderConfigView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProviderConfigView.swift; sourceTree = "<group>"; };
+		F113DA6816F4972B582A4DFD /* WelcomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WelcomeView.swift; sourceTree = "<group>"; };
+		4A47C0FE76CEDC40A7426DF7 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
+		4BD34D31A4B24D6B99232CA2 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		7548CB370740B54B0CBCC0D6 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		8F68B1BC1D5EA1E8DFDC9547 /* NaviAI.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = NaviAI.app; sourceTree = BUILT_PRODUCTS_DIR; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		67DB485315712526C81D54D9 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		BC2F301465A1CFBA7A894493 /* App */ = {
+			isa = PBXGroup;
+			children = (
+				A0D4ED7C3C47195A2E3A03E7 /* NaviAIApp.swift */,
+			);
+			path = App;
+			sourceTree = "<group>";
+		};
+		D87160A007D6E090A8190BBC /* Agent */ = {
+			isa = PBXGroup;
+			children = (
+				EBE27D9D56E0085688C58763 /* AgentLoop.swift */,
+				FDAFB9AE972BAE168D236A6F /* AgentTools.swift */,
+				C4A5E3C1C27FE9B3BED57731 /* AgentVision.swift */,
+			);
+			path = Agent;
+			sourceTree = "<group>";
+		};
+		5B4A905B20FD6BB19FF3F714 /* Browser */ = {
+			isa = PBXGroup;
+			children = (
+				F214BBF53CAC33CDD5E33C79 /* BrowserJavaScript.swift */,
+				0866F29BA6100594AA1B07BA /* BrowserStore.swift */,
+				41171AA6A083093A5A7E56A7 /* WebCoordinator.swift */,
+				59F36B642B8AB22928C7D135 /* WebSurfaceView.swift */,
+			);
+			path = Browser;
+			sourceTree = "<group>";
+		};
+		A7D7A9F3E798F706A8851CB4 /* Models */ = {
+			isa = PBXGroup;
+			children = (
+				05AE51C3ADB78399FA309299 /* Chat.swift */,
+				AC4692BBBC8E142AB89E2D87 /* Library.swift */,
+				2E89B7B3F5B588F13862495C /* Provider.swift */,
+			);
+			path = Models;
+			sourceTree = "<group>";
+		};
+		C2D6FC93FD1B3C4FEE78D14F /* Services */ = {
+			isa = PBXGroup;
+			children = (
+				A63CF6BD3D8F94EF60B271DA /* KeychainService.swift */,
+				421604D24880254492FE10E9 /* LLMService.swift */,
+				B526EBC62EAA360B9D576418 /* ProviderStore.swift */,
+				795EAE8A26C8155902025912 /* SettingsStore.swift */,
+			);
+			path = Services;
+			sourceTree = "<group>";
+		};
+		606ABB123AE571F9F38F2F65 /* Browser */ = {
+			isa = PBXGroup;
+			children = (
+				464775AD4126A9D8CAD6220B /* AIChatPanelView.swift */,
+				12770B846F4CB54F0401E6A6 /* AICursorView.swift */,
+				38185D034E02E01564F46A5F /* BrowserHomeView.swift */,
+				7330579E4D55F162ED221B09 /* LibraryViews.swift */,
+			);
+			path = Browser;
+			sourceTree = "<group>";
+		};
+		8C70F5DB896BC7BE80484DFB /* Onboarding */ = {
+			isa = PBXGroup;
+			children = (
+				FE4BE8EEE5B9039E236734F3 /* ChooseAIView.swift */,
+				D486F6A6F7EA3456FCBC9B93 /* ProviderConfigView.swift */,
+				F113DA6816F4972B582A4DFD /* WelcomeView.swift */,
+			);
+			path = Onboarding;
+			sourceTree = "<group>";
+		};
+		F4E5BDA477935E4748E6B351 /* Settings */ = {
+			isa = PBXGroup;
+			children = (
+				4A47C0FE76CEDC40A7426DF7 /* SettingsView.swift */,
+			);
+			path = Settings;
+			sourceTree = "<group>";
+		};
+		168C58F150E882A1B7B5E611 /* Views */ = {
+			isa = PBXGroup;
+			children = (
+				606ABB123AE571F9F38F2F65 /* Browser */,
+				8C70F5DB896BC7BE80484DFB /* Onboarding */,
+				F4E5BDA477935E4748E6B351 /* Settings */,
+			);
+			path = Views;
+			sourceTree = "<group>";
+		};
+		6C22AF364665AE1D2DF03A41 /* Sources */ = {
+			isa = PBXGroup;
+			children = (
+				BC2F301465A1CFBA7A894493 /* App */,
+				D87160A007D6E090A8190BBC /* Agent */,
+				5B4A905B20FD6BB19FF3F714 /* Browser */,
+				A7D7A9F3E798F706A8851CB4 /* Models */,
+				C2D6FC93FD1B3C4FEE78D14F /* Services */,
+				168C58F150E882A1B7B5E611 /* Views */,
+			);
+			path = Sources;
+			sourceTree = "<group>";
+		};
+		652777715F58CCD2D7153D97 /* NaviAI */ = {
+			isa = PBXGroup;
+			children = (
+				7548CB370740B54B0CBCC0D6 /* Assets.xcassets */,
+				4BD34D31A4B24D6B99232CA2 /* Info.plist */,
+				6C22AF364665AE1D2DF03A41 /* Sources */,
+			);
+			path = NaviAI;
+			sourceTree = "<group>";
+		};
+		36F0BACC06F90460EB2FBE6B /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				8F68B1BC1D5EA1E8DFDC9547 /* NaviAI.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		DDCAD7E21E7D5CE4FC103100 = {
+			isa = PBXGroup;
+			children = (
+				652777715F58CCD2D7153D97 /* NaviAI */,
+				36F0BACC06F90460EB2FBE6B /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		9EAE7880B0E4752879D84126 /* NaviAI */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = B97BB892AE4514D5E700E173 /* Build configuration list for PBXNativeTarget "NaviAI" */;
+			buildPhases = (
+				C0639A4178E02373EE83306A /* Sources */,
+				67DB485315712526C81D54D9 /* Frameworks */,
+				312DFBC2C52984546178F3BC /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = NaviAI;
+			productName = NaviAI;
+			productReference = 8F68B1BC1D5EA1E8DFDC9547 /* NaviAI.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		10625F016FF73497BB926A0A /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = 1;
+				LastSwiftUpdateCheck = 1500;
+				LastUpgradeCheck = 1500;
+				TargetAttributes = {
+					9EAE7880B0E4752879D84126 = {
+						CreatedOnToolsVersion = 15.0;
+					};
+				};
+			};
+			buildConfigurationList = 279A47B89ABAD2A48409B1CB /* Build configuration list for PBXProject "NaviAI" */;
+			compatibilityVersion = "Xcode 14.0";
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = DDCAD7E21E7D5CE4FC103100;
+			productRefGroup = 36F0BACC06F90460EB2FBE6B /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				9EAE7880B0E4752879D84126 /* NaviAI */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		312DFBC2C52984546178F3BC /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				1A2E7EAB97843AC2A0A5CF9C /* Assets.xcassets in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		C0639A4178E02373EE83306A /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				DC4ADE1F8C9AB25C39D63483 /* NaviAIApp.swift in Sources */,
+				E66E25E7C9A00705D4667FAA /* AgentLoop.swift in Sources */,
+				F718089FDD4C251D60E51F6F /* AgentTools.swift in Sources */,
+				E6EC1598228C746548C35F3F /* AgentVision.swift in Sources */,
+				59B5A04B0A23F0ADA2F568BB /* BrowserJavaScript.swift in Sources */,
+				0ED44F8A9F68BC549ED1A27C /* BrowserStore.swift in Sources */,
+				60AA99133C576855C2DF7E2A /* WebCoordinator.swift in Sources */,
+				169039D0F6BA0470A41300C0 /* WebSurfaceView.swift in Sources */,
+				6F941ED28C5D10AEA0C6984C /* Chat.swift in Sources */,
+				6AA07B50276FD424AB3BC9A9 /* Library.swift in Sources */,
+				9CF353351F87B50E42048106 /* Provider.swift in Sources */,
+				9A807FDFB72361E35ACC8948 /* KeychainService.swift in Sources */,
+				2137531FF6A46B9C7BEB1A4E /* LLMService.swift in Sources */,
+				1962747FF207D61CFA5326FD /* ProviderStore.swift in Sources */,
+				8FAAEB113B3C0924556A25C9 /* SettingsStore.swift in Sources */,
+				A18D11B5EEB5FF516F3F245C /* AIChatPanelView.swift in Sources */,
+				A3A290DF5B87A37B298C64F1 /* AICursorView.swift in Sources */,
+				4843178C0EFBF7D16DA291B7 /* BrowserHomeView.swift in Sources */,
+				6AA4EAB2339D63EAE766A94B /* LibraryViews.swift in Sources */,
+				ABBCF7DA24D208CE67F18FB9 /* ChooseAIView.swift in Sources */,
+				B2991BAF635262415D6A3B90 /* ProviderConfigView.swift in Sources */,
+				D4EE014303B395ADDCE7C9EA /* WelcomeView.swift in Sources */,
+				D3CCEB6937EF83B1403997E5 /* SettingsView.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		0CF001ABF8BC92BF838A7589 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = ("DEBUG=1","$(inherited)");
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				SDKROOT = iphoneos;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+			};
+			name = Debug;
+		};
+		14A7EE296134374880F5000D /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				SDKROOT = iphoneos;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				VALIDATE_PRODUCT = YES;
+			};
+			name = Release;
+		};
+		F90352C404A18B7D50EE928D /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = NaviAI/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+				LD_RUNPATH_SEARCH_PATHS = ("$(inherited)","@executable_path/Frameworks");
+				MARKETING_VERSION = 1.0.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.naviai.app;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+			};
+			name = Debug;
+		};
+		9E16A4F21D133DAAA3044C56 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = NaviAI/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+				LD_RUNPATH_SEARCH_PATHS = ("$(inherited)","@executable_path/Frameworks");
+				MARKETING_VERSION = 1.0.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.naviai.app;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				SWIFT_COMPILATION_MODE = wholemodule;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		279A47B89ABAD2A48409B1CB /* Build configuration list for PBXProject "NaviAI" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				0CF001ABF8BC92BF838A7589 /* Debug */,
+				14A7EE296134374880F5000D /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		B97BB892AE4514D5E700E173 /* Build configuration list for PBXNativeTarget "NaviAI" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				F90352C404A18B7D50EE928D /* Debug */,
+				9E16A4F21D133DAAA3044C56 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = 10625F016FF73497BB926A0A /* Project object */;
+}
