@@ -57,8 +57,15 @@ struct ChooseAIView: View {
                 .fontWeight(.semibold)
             }
         }
-        .navigationDestination(item: $providerDestination) { provider in
-            ProviderConfigView(config: provider)
+        .sheet(item: $providerDestination) { provider in
+            NavigationStack {
+                ProviderConfigView(config: provider)
+                    .toolbar {
+                        ToolbarItem(placement: .cancellationAction) {
+                            Button("Cancel") { providerDestination = nil }
+                        }
+                    }
+            }
         }
         .onAppear {
             _ = customAdding

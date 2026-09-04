@@ -14,7 +14,7 @@ struct NaviAIApp: App {
 
 @MainActor
 final class AppModel: ObservableObject {
-    let settings: SettingsStore
+    var settings: SettingsStore
     let providers: ProviderStore
     let browser: BrowserStore
 

@@ -105,8 +105,15 @@ struct SettingsView: View {
             }
         }
         .navigationTitle("Settings")
-        .navigationDestination(item: $providerTarget) { provider in
-            ProviderConfigView(config: provider)
+        .sheet(item: $providerTarget) { provider in
+            NavigationStack {
+                ProviderConfigView(config: provider)
+                    .toolbar {
+                        ToolbarItem(placement: .cancellationAction) {
+                            Button("Cancel") { providerTarget = nil }
+                        }
+                    }
+            }
         }
         .confirmationDialog(clearAction?.title ?? "", isPresented: Binding(
             get: { clearAction != nil },
