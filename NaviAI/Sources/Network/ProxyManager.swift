@@ -92,6 +92,7 @@ final class ProxyManager: ObservableObject {
     func deleteCredentials(for profile: ProxyProfile) {
         KeychainService.delete(account: account(for: profile.id))
     }
+}
 
 // MARK: - Connection proxy dictionary (the ONLY official mechanism)
 
@@ -181,5 +182,4 @@ extension ProxyManager {
                               message: "Failed: \(error.localizedDescription)")
         }
     }
-}
 }

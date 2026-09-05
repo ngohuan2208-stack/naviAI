@@ -243,6 +243,7 @@ struct NetworkCenterView: View {
         if added > 0 { proxy.persist() }
         importText = ""
     }
+}
 
 extension NetworkCenterView {
 
@@ -341,5 +342,4 @@ struct ProxyEditorView: View {
             }
         }
     }
-}
 }
