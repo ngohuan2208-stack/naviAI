@@ -17,7 +17,7 @@ final class WebCoordinator: NSObject {
     /// Desktop-mode user agent used when the setting is on.
     static let desktopUserAgent = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Safari/605.1.15"
 
-    init(tabID: UUID, desktopMode: Bool) {
+    init(tabID: UUID, desktopMode: Bool, ephemeral: Bool = false) {
         self.tabID = tabID
         self.isDesktopAgent = desktopMode
 
@@ -29,7 +29,9 @@ final class WebCoordinator: NSObject {
             forMainFrameOnly: true
         ))
         config.userContentController = controller
-        config.websiteDataStore = WKWebsiteDataStore.default()
+        // Private tabs use an isolated, non-persistent store: their cookies and
+        // local storage do not survive the session (official WebKit API).
+        config.websiteDataStore = ephemeral ? WKWebsiteDataStore.nonPersistent() : WKWebsiteDataStore.default()
         config.allowsInlineMediaPlayback = true
         config.defaultWebpagePreferences.allowsContentJavaScript = true
 

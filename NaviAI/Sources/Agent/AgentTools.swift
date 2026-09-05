@@ -76,6 +76,15 @@ extension BrowserStore {
                 return "Blocked: View mode is read-only. Switch to Interact or Auto mode to perform this action."
             }
         }
+        // Unified funnel: every tool call is validated against the registry
+        // before execution, and risky capabilities are permission-gated.
+        if case .failure(let message) = ToolRegistry.shared.validate(name: name, argumentsJSON: argumentsJSON) {
+            return "Invalid tool call: \(message)"
+        }
+        if let def = ToolRegistry.shared.definition(for: name), def.permission.isRisky {
+            let allowed = await PermissionSystem.shared.authorize(def.permission, detail: def.description)
+            if !allowed { return "Blocked: \(def.permission.label) was not allowed." }
+        }
         switch name {
         case "openURL":
             return await toolOpenURL(urlString: stringArg(args, "url"))
@@ -113,6 +122,13 @@ extension BrowserStore {
             return "switchTab requires an index."
         case "closeTab":
             return await toolCloseTab(index: intArg(args, "index"))
+        case "screenshot":
+            if await captureScreenshot() != nil {
+                return "Screenshot captured and attached to the conversation context."
+            }
+            return "Could not capture a screenshot."
+        case "generateImage":
+            return await toolGenerateImage(prompt: stringArg(args, "prompt"), size: stringArg(args, "size"))
         default:
             return "Unknown tool '\(name)'."
         }
@@ -548,6 +564,30 @@ extension BrowserStore {
             }
         }
         return nil
+    }
+
+    // MARK: Image generation (multimodal)
+
+    /// Generates an image with the active provider (OpenAI-compatible images
+    /// endpoint). Never fakes success: failures surface real provider errors.
+    private func toolGenerateImage(prompt: String, size: String?) async -> String {
+        let trimmed = prompt.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return "generateImage requires a prompt." }
+        do {
+            let image = try await ImagePipeline.shared.generate(prompt: trimmed, size: (size?.isEmpty == false) ? size : nil)
+            let dir = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first
+                ?? URL(fileURLWithPath: NSTemporaryDirectory())
+            let folder = dir.appendingPathComponent("GeneratedImages", isDirectory: true)
+            try? FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+            let name = "img-" + UUID().uuidString + ".png"
+            let fileURL = folder.appendingPathComponent(name)
+            try image.data.write(to: fileURL, options: .atomic)
+            return "Generated an image from the prompt and saved it at \(fileURL.absoluteString)."
+        } catch let e as ImageGenerationError {
+            return "Image generation failed: \(e.errorDescription ?? "unknown error")"
+        } catch {
+            return "Image generation failed: \(error.localizedDescription)"
+        }
     }
 }
 

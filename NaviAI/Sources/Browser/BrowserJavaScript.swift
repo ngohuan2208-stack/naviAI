@@ -547,4 +547,93 @@ enum BrowserJavaScript {
     static func elementExistsExpr(id: Int) -> String {
         "window.__navi.exists(\(id))"
     }
+
+    /// Top absolute http(s) links on the page (for research / link extraction).
+    static func topLinksExpr(max: Int) -> String {
+        """
+        (function(){
+          var seen = {}, out = [];
+          var as = document.querySelectorAll('a[href]');
+          for (var i=0; i<as.length && out.length<\(max); i++) {
+            var h = as[i].href;
+            try { var u = new URL(h); if ((u.protocol==='http:'||u.protocol==='https:') && !seen[h]) { seen[h]=1; out.push(h); } } catch(e){}
+          }
+          return '[' + out.join(',') + ']';
+        })()
+        """
+    }
+
+    /// Deep structured read of the page: headings, paragraphs, links, inputs,
+    /// forms, tables, lists and metadata — a real semantic snapshot, never a
+    /// raw DOM dump. This powers Deep Read and multi-source Context.
+    static func deepStructureExpr(maxParagraphs: Int = 200, maxLinks: Int = 80) -> String {
+        """
+        (function(){
+          function txt(el){ return (el && el.textContent) ? el.textContent.replace(/\\s+/g,' ').trim() : ''; }
+          function one(Q){ try { return document.querySelector(Q); } catch(e){ return null; } }
+          function all(Q){ try { return Array.prototype.slice.call(document.querySelectorAll(Q)); } catch(e){ return []; } }
+          function labelFor(el){
+            var l = null;
+            if (el.labels && el.labels.length) l = el.labels[0];
+            if (!l && el.id) { var byFor = all('label[for="'+el.id+'"]'); if (byFor.length) l = byFor[0]; }
+            if (!l) { var cl = el.closest('label'); if (cl) l = cl; }
+            return l ? txt(l) : '';
+          }
+          var meta = {};
+          all('meta').forEach(function(m){
+            var k = m.getAttribute('name') || m.getAttribute('property');
+            var c = m.getAttribute('content');
+            if (k && c) meta[k] = c;
+          });
+          function firstText(sels, max){
+            var e = one(sels.join(',')); if (!e) return '';
+            var t = txt(e); return t.length>max ? t.slice(0,max) : t;
+          }
+          var headings = all('h1,h2,h3,h4,h5,h6').map(txt).filter(function(t){return t.length;}).slice(0,60);
+          var paragraphs = all('p').map(txt).filter(function(t){return t.length>30;}).slice(0,\(maxParagraphs));
+          var links = [];
+          all('a[href]').forEach(function(a){
+            var h=a.href; var t=txt(a);
+            try { var u=new URL(h); if ((u.protocol==='http:'||u.protocol==='https:') && links.length<\(maxLinks)) links.push({text:t,href:h}); } catch(e){}
+          });
+          var buttons = all('button').map(txt).filter(function(t){return t.length;}).slice(0,60);
+          var inputs = all('input,textarea,select,[contenteditable="true"]').slice(0,40).map(function(el){
+            return {name: el.getAttribute('name')||'', type: (el.type||el.getAttribute('type'))||'text', placeholder: el.getAttribute('placeholder')||'', label: labelFor(el)};
+          });
+          var forms = all('form').slice(0,5).map(function(f){
+            var fs = Array.prototype.slice.call(f.querySelectorAll('input,textarea,select,[contenteditable="true"]')).slice(0,10).map(function(el){
+              return {name: el.getAttribute('name')||'', type: (el.type||el.getAttribute('type'))||'text', placeholder: el.getAttribute('placeholder')||'', label: labelFor(el)};
+            });
+            return {action: f.action||'', method: (f.method||'get'), inputs: fs};
+          });
+          var tables = all('table').slice(0,5).map(function(tb){
+            var rows = Array.prototype.slice.call(tb.querySelectorAll('tr'));
+            var headers = [];
+            var body = [];
+            rows.forEach(function(tr, ri){
+              var cells = Array.prototype.slice.call(tr.querySelectorAll('th,td')).map(function(c){ return txt(c); });
+              if (ri===0){ headers = cells; } else { body.push(cells); }
+            });
+            return {headers: headers, rows: body.slice(0,12)};
+          });
+          var lists = all('ul,ol').slice(0,20).map(function(ul){ return ul.innerText.replace(/\\s+/g,' ').trim(); }).filter(function(t){return t.length;}).slice(0,10);
+          var mainExcerpt = firstText(['main','article','[role="main"]'], 4000) || txt(document.body).slice(0,4000);
+          return JSON.stringify({
+            url: location.href,
+            title: document.title,
+            meta: meta,
+            headings: headings,
+            paragraphs: paragraphs,
+            links: links,
+            buttons: buttons,
+            inputs: inputs,
+            forms: forms,
+            tables: tables,
+            lists: lists,
+            bodyExcerpt: txt(document.body).slice(0,12000),
+            mainContent: mainExcerpt
+          });
+        })()
+        """
+    }
 }

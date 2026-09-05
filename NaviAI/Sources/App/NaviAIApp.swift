@@ -26,6 +26,28 @@ final class AppModel: ObservableObject {
         self.providers = providers
         self.browser = BrowserStore(settings: settings, providers: providers)
         self.automation = AutomationScheduler(browser: browser)
+
+        // Dependency injection for the image pipeline: the active provider and
+        // its Keychain key are resolved through the existing stores.
+        ImagePipeline.shared.activeProvider = { [weak providers] in providers?.activeProvider }
+        ImagePipeline.shared.apiKeyFor = { [weak providers] config in
+            providers?.apiKey(for: config)
+        }
+
+        // LLM-backed conversation summarizer (graceful fallback inside the
+        // store when no provider is configured).
+        let llm = LLMService()
+        ConversationStore.shared.summarizer = { [weak providers] text in
+            guard let config = providers?.activeProvider,
+                  let key = providers?.apiKey(for: config) else { return "" }
+            let system = "Summarize the following conversation history into compact bullet points (max 200 words) preserving facts, decisions and open questions. Output only the summary."
+            let reply = try? await llm.complete(config: config, apiKey: key,
+                                                history: [.system(system), .userText(text)], tools: [])
+            return reply?.text ?? ""
+        }
+
+        // Deep research drives the browser.
+        DeepResearchEngine.shared.browser = browser
     }
 }
 

@@ -101,7 +101,16 @@ extension BrowserStore {
             AgentToolSpec(name: "reload", description: "Reload the current page.", parameters: schema([], [:])),
             AgentToolSpec(name: "openTab", description: "Open a new tab (optionally to a URL) and switch to it.", parameters: schema([], ["url": str("url", "Optional URL")])),
             AgentToolSpec(name: "switchTab", description: "Switch to another open tab by its index (0-based, see the tab list in readPage).", parameters: schema(["index"], ["index": int])),
-            AgentToolSpec(name: "closeTab", description: "Close a tab by index (optional). Without index closes the current tab.", parameters: schema([], ["index": int]))
+            AgentToolSpec(name: "closeTab", description: "Close a tab by index (optional). Without index closes the current tab.", parameters: schema([], ["index": int])),
+            AgentToolSpec(name: "screenshot",
+                          description: "Capture a screenshot of the current page and attach it to the conversation context.",
+                          parameters: schema([], [:])),
+            AgentToolSpec(name: "generateImage",
+                          description: "Generate an image from a text prompt with the configured image provider. Returns the saved file path.",
+                          parameters: schema(["prompt"], [
+                            "prompt": str("prompt", "Description of the image to generate"),
+                            "size": str("size", "Optional size, e.g. 1024x1024")
+                          ]))
         ]
 
         // View mode is strictly read-only: only expose page-inspection tools so

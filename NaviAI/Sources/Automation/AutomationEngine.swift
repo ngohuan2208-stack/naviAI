@@ -153,6 +153,23 @@ final class AutomationEngine: ObservableObject {
                     continue
                 }
 
+                // CAPTCHA guard: if a challenge is on screen, pause the run and
+                // let the human solve it. NaviAI never bypasses anti-bot checks;
+                // if the user declines, the run is cancelled cleanly.
+                if await isCaptchaOnScreen() {
+                    delegate?.engine(self, task: task, runID: runID, didLog: "CAPTCHA / security check detected — waiting for the user.")
+                    AutomationNotification.shared.postLocal(
+                        title: "NaviAI needs you",
+                        body: "“\(task.name)” hit a CAPTCHA. Solve it in the app to continue.")
+                    let solved = await delegate?.engine(self, task: task, runID: runID,
+                                                        requiresConfirmation: "A CAPTCHA / security check is displayed in the page. Solve it manually, then continue. NaviAI never bypasses anti-bot checks.",
+                                                        for: step) ?? false
+                    if !solved {
+                        throw CancellationError()
+                    }
+                    delegate?.engine(self, task: task, runID: runID, didLog: "CAPTCHA solved by the user — resuming.")
+                }
+
                 let outcome = try await execute(step: step, task: task)
                 stepsExecuted += 1
 
@@ -198,6 +215,15 @@ final class AutomationEngine: ObservableObject {
 
     /// Executes one step. Returns a non-nil string when the step produced the
     /// run's final result (askLLM).
+    // MARK: CAPTCHA detection (detect → pause → ask; never bypass)
+
+    /// True when the current page shows a CAPTCHA / anti-bot challenge.
+    private func isCaptchaOnScreen() async -> Bool {
+        guard let browser else { return false }
+        guard let signals = try? await browser.fetchSignals() else { return false }
+        return signals.hasCaptchaFrame || !signals.bodyHint.isEmpty
+    }
+
     private func execute(step: AutomationStep, task: AutomationTask) async throws -> String? {
         guard let browser else { throw AutomationEngineError.noBrowser }
         await InteractionEngine.shared.pauseBetweenActions()

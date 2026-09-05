@@ -8,13 +8,16 @@ import WebKit
 final class TabItem: ObservableObject, Identifiable {
     let id: UUID
     let coordinator: WebCoordinator
+    /// Whether this tab is part of a private (non-persistent storage) session.
+    let isPrivate: Bool
     @Published var title: String = ""
     @Published var url: URL?
     @Published var isLoading: Bool = false
 
-    init(desktopMode: Bool) {
+    init(desktopMode: Bool, isPrivate: Bool = false) {
         self.id = UUID()
-        self.coordinator = WebCoordinator(tabID: id, desktopMode: desktopMode)
+        self.isPrivate = isPrivate
+        self.coordinator = WebCoordinator(tabID: id, desktopMode: desktopMode, ephemeral: isPrivate)
     }
 
     var webView: WKWebView { coordinator.webView }
@@ -272,8 +275,8 @@ final class BrowserStore: ObservableObject {
     var activeCoordinator: WebCoordinator? { activeTab?.coordinator }
 
     @discardableResult
-    func newTab(url: URL?, activate: Bool = true) -> TabItem {
-        let tab = TabItem(desktopMode: settings.desktopModeEnabled)
+    func newTab(url: URL?, activate: Bool = true, ephemeral: Bool = false) -> TabItem {
+        let tab = TabItem(desktopMode: settings.desktopModeEnabled, isPrivate: ephemeral)
         tabs.append(tab)
         if activate { selectTab(tab.id) }
         let target = url ?? settings.searchEngine.homeURL
@@ -288,6 +291,14 @@ final class BrowserStore: ObservableObject {
     func closeTab(_ id: UUID) {
         guard let idx = tabs.firstIndex(where: { $0.id == id }) else { return }
         let tab = tabs[idx]
+        // Remember closed tabs for "Reopen closed tab" (except private tabs,
+        // which must not be restored).
+        if !tab.isPrivate {
+            ClosedTabStack.push(url: tab.webView.url ?? tab.url, title: tab.title)
+        }
+        if tab.isPrivate {
+            PrivateSessionManager.shared.unregister(tabID: id)
+        }
         tab.coordinator.webView.stopLoading()
         if activeTabID == id {
             let newIndex = max(0, idx - 1)
@@ -324,6 +335,28 @@ final class BrowserStore: ObservableObject {
 
     func openNewTab(url: URL) {
         _ = newTab(url: url, activate: true)
+    }
+
+    // MARK: - Private tabs
+
+    /// Open a new private tab with an isolated, non-persistent data store.
+    @discardableResult
+    func openPrivateTab(url: URL? = nil) -> TabItem {
+        let tab = newTab(url: url ?? settings.searchEngine.homeURL, activate: true, ephemeral: true)
+        PrivateSessionManager.shared.register(tabID: tab.id, title: tab.title, url: tab.url?.absoluteString ?? "")
+        return tab
+    }
+
+    /// Close a single private tab and release its ephemeral data.
+    func closePrivateTab(_ id: UUID) {
+        guard let tab = tabs.first(where: { $0.id == id }) else { return }
+        PrivateSessionManager.shared.unregister(tabID: id)
+        closeTab(id)
+        _ = tab // lifetime fully handled by closeTab
+    }
+
+    var isActiveTabPrivate: Bool {
+        activeTab?.isPrivate ?? false
     }
 
     /// Opens a copy of the active tab (same URL, same title).
@@ -459,13 +492,18 @@ final class BrowserStore: ObservableObject {
             syncChrome()
         }
         if let url = finalURL, url.scheme == "http" || url.scheme == "https" {
-            recordVisit(title: tab.title.isEmpty ? url.absoluteString : tab.title, url: url)
-            // Durable browser history (searchable, deletable, survives
-            // relaunches) with session/tab metadata.
-            HistoryStore.shared.recordVisit(url: url,
-                                            title: tab.title,
-                                            sessionID: tab.id,
-                                            sessionName: tab.title.isEmpty ? "Tab" : tab.title)
+            if tab.isPrivate {
+                // Private session: never record history or long-lived records.
+                PrivateSessionManager.shared.update(tabID: tabID, title: tab.title, url: url.absoluteString)
+            } else {
+                recordVisit(title: tab.title.isEmpty ? url.absoluteString : tab.title, url: url)
+                // Durable browser history (searchable, deletable, survives
+                // relaunches) with session/tab metadata.
+                HistoryStore.shared.recordVisit(url: url,
+                                                title: tab.title,
+                                                sessionID: tab.id,
+                                                sessionName: tab.title.isEmpty ? "Tab" : tab.title)
+            }
         }
         persistSessionTabs()
         updateBookmarkState()
@@ -701,7 +739,8 @@ final class BrowserStore: ObservableObject {
     }
 
     private func persistSessionTabs() {
-        let items = tabs.prefix(8).map { tab in
+        // Private tabs are not part of the restorable session.
+        let items = tabs.filter { !$0.isPrivate }.prefix(8).map { tab in
             StoredTabSession(url: tab.webView.url ?? tab.url, title: tab.title.isEmpty ? (tab.webView.url?.host ?? "New Tab") : tab.title)
         }
         if let data = try? JSONEncoder().encode(items) {

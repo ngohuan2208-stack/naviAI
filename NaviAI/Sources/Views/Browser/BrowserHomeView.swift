@@ -3,7 +3,7 @@ import UIKit
 import WebKit
 
 enum SheetContent: String, Identifiable {
-    case history, bookmarks, downloads, siteData, settings
+    case history, historyCenter, bookmarks, downloads, siteData, settings, commandBar
     var id: String { rawValue }
 }
 
@@ -62,10 +62,12 @@ private struct BrowserContentView: View {
         NavigationStack {
             switch content {
             case .history: HistorySheet(store: store)
+            case .historyCenter: HistoryCenterView(store: store)
             case .bookmarks: BookmarksSheet(store: store)
             case .downloads: DownloadsSheet(store: store)
             case .siteData: SiteDataSheet(store: store)
             case .settings: SettingsView()
+            case .commandBar: CommandBarView(store: store)
             }
         }
         .environmentObject(app)
@@ -137,6 +139,26 @@ private struct BrowserContentView: View {
                     Label("New Tab", systemImage: "plus.square.on.square")
                 }
                 Button {
+                    store.openPrivateTab(url: nil)
+                } label: {
+                    Label("New Private Tab", systemImage: "mask")
+                }
+                Button {
+                    store.reopenClosedTab()
+                } label: {
+                    Label("Reopen Last Closed Tab", systemImage: "arrow.uturn.backward.square")
+                }
+                Button {
+                    activeSheet = .commandBar
+                } label: {
+                    Label("Command Bar", systemImage: "command")
+                }
+                NavigationLink {
+                    ResearchView()
+                } label: {
+                    Label("Deep Research", systemImage: "sparkMagnifyingglass")
+                }
+                Button {
                     store.duplicateActiveTab()
                 } label: {
                     Label("Duplicate Tab", systemImage: "doc.on.doc")
@@ -182,6 +204,11 @@ private struct BrowserContentView: View {
                     activeSheet = .history
                 } label: {
                     Label("History", systemImage: "clock.arrow.circlepath")
+                }
+                Button {
+                    activeSheet = .historyCenter
+                } label: {
+                    Label("History Center", systemImage: "clock.badge.arrow.down")
                 }
                 Button {
                     activeSheet = .downloads
