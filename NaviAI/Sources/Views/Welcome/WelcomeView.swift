@@ -245,6 +245,7 @@ struct SmartRecent: Identifiable {
         }
     }
 
+    @MainActor
     func run(app: AppModel) {
         app.browser.showsWelcome = false
         action(app)
@@ -257,6 +258,7 @@ enum SmartRecentsBuilder {
 
     /// Merges the newest items from every store, interleaved by kind so the
     /// list is diverse: tabs → chats → reports → history → automation.
+    @MainActor
     static func build(app: AppModel, limit: Int = 8) -> [SmartRecent] {
         var items: [SmartRecent] = []
         let browser = app.browser

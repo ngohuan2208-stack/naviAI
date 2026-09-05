@@ -240,6 +240,8 @@ struct DiagnosisContext {
     var consoleWarnings: [String]
     var networkFailures: [String]
     var domElementCount: Int
+}
+
 // MARK: - DevTools analyzer
 
 /// Turns DevTools page observations into a diagnosis. Prefers the configured
@@ -391,5 +393,4 @@ private static func analyzeNetworkCause(_ failures: [String]) -> String {
             suggestedFix: Redactor.redactText(obj["fix"] as? String ?? "Investigate further."),
             source: .llm)
     }
-}
 }
