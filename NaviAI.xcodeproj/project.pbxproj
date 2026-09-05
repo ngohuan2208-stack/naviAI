@@ -240,7 +240,8 @@
 				7E0000000000000000000019 /* Automation */,
 				F4E5BDA477935E4748E6B351 /* Settings */,
 				F2575EDE5A9FE10DC6BC790C /* Browser */,
-				7E00000000000000000000C1 /* DevTools */,
+				7E00000000000000000000C3 /* DevTools */,
+				7E00000000000000000000C4 /* Network */,
 				7E00000000000000000000C2 /* Welcome */,
 			);
 			path = Views;
@@ -439,9 +440,25 @@
 				7E00000000000000000000B5 /* Redactor.swift */,
 				7E00000000000000000000B6 /* DevToolsStore.swift */,
 				7E00000000000000000000B7 /* DOMInspector.swift */,
+			);
+			path = DevTools;
+			sourceTree = "<group>";
+		};
+		7E00000000000000000000C3 /* DevTools */ = {
+			isa = PBXGroup;
+			children = (
+				7E00000000000000000000B8 /* DevToolsPanelView.swift */,
 				7E00000000000000000000BB /* ImageStudioView.swift */,
 			);
 			path = DevTools;
+			sourceTree = "<group>";
+		};
+		7E00000000000000000000C4 /* Network */ = {
+			isa = PBXGroup;
+			children = (
+				7E00000000000000000000B4 /* NetworkCenterView.swift */,
+			);
+			path = Network;
 			sourceTree = "<group>";
 		};
 		7E00000000000000000000C2 /* Welcome */ = {
