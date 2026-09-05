@@ -46,12 +46,19 @@ workflows:
           set -e
           cd "$CM_BUILD_DIR"
           rm -rf build
+          # Build a generic iOS device archive. The project uses
+          # CODE_SIGN_STYLE = Automatic with NO development team set, so a bare
+          # "xcodebuild archive" for iphoneos fails with the classic
+          # 'Signing for "NaviAI" requires a development team' error (exit 65).
+          # Here we explicitly switch to Manual signing and fully disable it so
+          # the archive step never runs the automatic-signing/team validation.
           xcodebuild \
             -project "$XCODE_PROJECT" \
             -scheme "$XCODE_SCHEME" \
             -configuration Release \
-            -sdk iphoneos \
+            -destination 'generic/platform=iOS' \
             -archivePath build/NaviAI.xcarchive \
+            CODE_SIGN_STYLE=Manual \
             CODE_SIGNING_ALLOWED=NO \
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGN_IDENTITY="" \
@@ -107,7 +114,7 @@ workflows:
             -project "$XCODE_PROJECT" \
             -scheme "$XCODE_SCHEME" \
             -configuration Release \
-            -sdk iphoneos \
+            -destination 'generic/platform=iOS' \
             -archivePath build/NaviAI.xcarchive \
             -allowProvisioningUpdates \
             archive
