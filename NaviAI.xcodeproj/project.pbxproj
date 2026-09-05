@@ -215,8 +215,8 @@
 				8C70F5DB896BC7BE80484DFB /* Onboarding */,
 				7E0000000000000000000019 /* Automation */,
 				F4E5BDA477935E4748E6B351 /* Settings */,
-			);
 				F2575EDE5A9FE10DC6BC790C /* Browser */,
+			);
 			path = Views;
 			sourceTree = "<group>";
 		};
@@ -231,7 +231,6 @@
 				A7D7A9F3E798F706A8851CB4 /* Models */,
 				C2D6FC93FD1B3C4FEE78D14F /* Services */,
 				168C58F150E882A1B7B5E611 /* Views */,
-			);
 				1A11ADDBEC008589403A8A07 /* Tools */,
 				B6510251B6482D8135DC821F /* Security */,
 				81B0471A4504B3062539D8F7 /* AI */,
@@ -242,6 +241,7 @@
 				0C2509F51EEE50FED4317EF7 /* Research */,
 				7C6EE239E7D51B5D41EB6BA7 /* Private */,
 				F699C1E510401912545D7A83 /* Tabs */,
+			);
 			path = Sources;
 			sourceTree = "<group>";
 		};
