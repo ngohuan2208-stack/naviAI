@@ -460,6 +460,12 @@ final class BrowserStore: ObservableObject {
         }
         if let url = finalURL, url.scheme == "http" || url.scheme == "https" {
             recordVisit(title: tab.title.isEmpty ? url.absoluteString : tab.title, url: url)
+            // Durable browser history (searchable, deletable, survives
+            // relaunches) with session/tab metadata.
+            HistoryStore.shared.recordVisit(url: url,
+                                            title: tab.title,
+                                            sessionID: tab.id,
+                                            sessionName: tab.title.isEmpty ? "Tab" : tab.title)
         }
         persistSessionTabs()
         updateBookmarkState()
@@ -663,6 +669,8 @@ final class BrowserStore: ObservableObject {
         history.insert(PageVisit(title: title, urlString: urlString), at: 0)
         if history.count > 500 { history.removeLast(history.count - 500) }
         persistLibrary()
+        // Durable browser history is recorded in webDidFinish via
+        // HistoryStore.recordVisit (with session metadata).
     }
 
     private func restoreTabs() {

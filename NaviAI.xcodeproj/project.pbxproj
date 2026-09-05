@@ -7,6 +7,17 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		7E0000000000000000000002 /* AutomationTask.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7E0000000000000000000001 /* AutomationTask.swift */; };
+		7E0000000000000000000004 /* AutomationEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7E0000000000000000000003 /* AutomationEngine.swift */; };
+		7E0000000000000000000006 /* AutomationScheduler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7E0000000000000000000005 /* AutomationScheduler.swift */; };
+		7E0000000000000000000008 /* AutomationPersistence.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7E0000000000000000000007 /* AutomationPersistence.swift */; };
+		7E000000000000000000000A /* AutomationNotification.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7E0000000000000000000009 /* AutomationNotification.swift */; };
+		7E000000000000000000000C /* InteractionEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7E000000000000000000000B /* InteractionEngine.swift */; };
+		7E000000000000000000000E /* AgentToolRegistry.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7E000000000000000000000D /* AgentToolRegistry.swift */; };
+		7E0000000000000000000010 /* AgentActivityLog.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7E000000000000000000000F /* AgentActivityLog.swift */; };
+		7E0000000000000000000012 /* HistoryStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7E0000000000000000000011 /* HistoryStore.swift */; };
+		7E0000000000000000000014 /* AutomationViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7E0000000000000000000013 /* AutomationViews.swift */; };
+		7E0000000000000000000016 /* AutomationTaskEditor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7E0000000000000000000015 /* AutomationTaskEditor.swift */; };
 		DC4ADE1F8C9AB25C39D63483 /* NaviAIApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0D4ED7C3C47195A2E3A03E7 /* NaviAIApp.swift */; };
 		E66E25E7C9A00705D4667FAA /* AgentLoop.swift in Sources */ = {isa = PBXBuildFile; fileRef = EBE27D9D56E0085688C58763 /* AgentLoop.swift */; };
 		F718089FDD4C251D60E51F6F /* AgentTools.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDAFB9AE972BAE168D236A6F /* AgentTools.swift */; };
@@ -34,6 +45,17 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		7E0000000000000000000001 /* AutomationTask.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = AutomationTask.swift; sourceTree = "<group>"; };
+		7E0000000000000000000003 /* AutomationEngine.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = AutomationEngine.swift; sourceTree = "<group>"; };
+		7E0000000000000000000005 /* AutomationScheduler.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = AutomationScheduler.swift; sourceTree = "<group>"; };
+		7E0000000000000000000007 /* AutomationPersistence.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = AutomationPersistence.swift; sourceTree = "<group>"; };
+		7E0000000000000000000009 /* AutomationNotification.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = AutomationNotification.swift; sourceTree = "<group>"; };
+		7E000000000000000000000B /* InteractionEngine.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = InteractionEngine.swift; sourceTree = "<group>"; };
+		7E000000000000000000000D /* AgentToolRegistry.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = AgentToolRegistry.swift; sourceTree = "<group>"; };
+		7E000000000000000000000F /* AgentActivityLog.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = AgentActivityLog.swift; sourceTree = "<group>"; };
+		7E0000000000000000000011 /* HistoryStore.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = HistoryStore.swift; sourceTree = "<group>"; };
+		7E0000000000000000000013 /* AutomationViews.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = AutomationViews.swift; sourceTree = "<group>"; };
+		7E0000000000000000000015 /* AutomationTaskEditor.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = AutomationTaskEditor.swift; sourceTree = "<group>"; };
 		A0D4ED7C3C47195A2E3A03E7 /* NaviAIApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NaviAIApp.swift; sourceTree = "<group>"; };
 		EBE27D9D56E0085688C58763 /* AgentLoop.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AgentLoop.swift; sourceTree = "<group>"; };
 		FDAFB9AE972BAE168D236A6F /* AgentTools.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AgentTools.swift; sourceTree = "<group>"; };
@@ -87,7 +109,8 @@
 				EBE27D9D56E0085688C58763 /* AgentLoop.swift */,
 				FDAFB9AE972BAE168D236A6F /* AgentTools.swift */,
 				C4A5E3C1C27FE9B3BED57731 /* AgentVision.swift */,
-			);
+							7E000000000000000000000D /* AgentToolRegistry.swift */,
+);
 			path = Agent;
 			sourceTree = "<group>";
 		};
@@ -98,7 +121,8 @@
 				0866F29BA6100594AA1B07BA /* BrowserStore.swift */,
 				41171AA6A083093A5A7E56A7 /* WebCoordinator.swift */,
 				59F36B642B8AB22928C7D135 /* WebSurfaceView.swift */,
-			);
+							7E000000000000000000000B /* InteractionEngine.swift */,
+);
 			path = Browser;
 			sourceTree = "<group>";
 		};
@@ -157,6 +181,7 @@
 			children = (
 				606ABB123AE571F9F38F2F65 /* Browser */,
 				8C70F5DB896BC7BE80484DFB /* Onboarding */,
+				7E0000000000000000000019 /* Automation */,
 				F4E5BDA477935E4748E6B351 /* Settings */,
 			);
 			path = Views;
@@ -168,6 +193,8 @@
 				BC2F301465A1CFBA7A894493 /* App */,
 				D87160A007D6E090A8190BBC /* Agent */,
 				5B4A905B20FD6BB19FF3F714 /* Browser */,
+				7E0000000000000000000017 /* Automation */,
+				7E0000000000000000000018 /* Storage */,
 				A7D7A9F3E798F706A8851CB4 /* Models */,
 				C2D6FC93FD1B3C4FEE78D14F /* Services */,
 				168C58F150E882A1B7B5E611 /* Views */,
@@ -199,6 +226,36 @@
 				652777715F58CCD2D7153D97 /* NaviAI */,
 				36F0BACC06F90460EB2FBE6B /* Products */,
 			);
+			sourceTree = "<group>";
+		};
+		7E0000000000000000000017 /* Automation */ = {
+			isa = PBXGroup;
+			children = (
+				7E0000000000000000000001 /* AutomationTask.swift */,
+				7E0000000000000000000003 /* AutomationEngine.swift */,
+				7E0000000000000000000005 /* AutomationScheduler.swift */,
+				7E0000000000000000000007 /* AutomationPersistence.swift */,
+				7E0000000000000000000009 /* AutomationNotification.swift */,
+			);
+			path = Automation;
+			sourceTree = "<group>";
+		};
+		7E0000000000000000000018 /* Storage */ = {
+			isa = PBXGroup;
+			children = (
+				7E000000000000000000000F /* AgentActivityLog.swift */,
+				7E0000000000000000000011 /* HistoryStore.swift */,
+			);
+			path = Storage;
+			sourceTree = "<group>";
+		};
+		7E0000000000000000000019 /* Automation */ = {
+			isa = PBXGroup;
+			children = (
+				7E0000000000000000000013 /* AutomationViews.swift */,
+				7E0000000000000000000015 /* AutomationTaskEditor.swift */,
+			);
+			path = Automation;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -270,6 +327,17 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				7E0000000000000000000002 /* AutomationTask.swift in Sources */,
+				7E0000000000000000000004 /* AutomationEngine.swift in Sources */,
+				7E0000000000000000000006 /* AutomationScheduler.swift in Sources */,
+				7E0000000000000000000008 /* AutomationPersistence.swift in Sources */,
+				7E000000000000000000000A /* AutomationNotification.swift in Sources */,
+				7E000000000000000000000C /* InteractionEngine.swift in Sources */,
+				7E000000000000000000000E /* AgentToolRegistry.swift in Sources */,
+				7E0000000000000000000010 /* AgentActivityLog.swift in Sources */,
+				7E0000000000000000000012 /* HistoryStore.swift in Sources */,
+				7E0000000000000000000014 /* AutomationViews.swift in Sources */,
+				7E0000000000000000000016 /* AutomationTaskEditor.swift in Sources */,
 				DC4ADE1F8C9AB25C39D63483 /* NaviAIApp.swift in Sources */,
 				E66E25E7C9A00705D4667FAA /* AgentLoop.swift in Sources */,
 				F718089FDD4C251D60E51F6F /* AgentTools.swift in Sources */,

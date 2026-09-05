@@ -64,6 +64,11 @@ final class SettingsStore: ObservableObject {
     @Published var autoScrollEnabled: Bool { didSet { defaults.set(autoScrollEnabled, forKey: Keys.autoScroll) } }
     @Published var showAgentLabelsEnabled: Bool { didSet { defaults.set(showAgentLabelsEnabled, forKey: Keys.labels) } }
 
+    // Automation / background
+    @Published var automationNotificationsEnabled: Bool { didSet { defaults.set(automationNotificationsEnabled, forKey: Keys.automationNotifications) } }
+    @Published var automationDefaultPolicy: ConfirmationPolicy { didSet { defaults.set(automationDefaultPolicy.rawValue, forKey: Keys.automationPolicy) } }
+    @Published var floatingStatusEnabled: Bool { didSet { defaults.set(floatingStatusEnabled, forKey: Keys.floatingStatus) } }
+
     private enum Keys {
         static let onboarded = "settings.onboarded"
         static let appearance = "settings.appearance"
@@ -75,6 +80,9 @@ final class SettingsStore: ObservableObject {
         static let desktopMode = "settings.desktopMode"
         static let autoScroll = "settings.autoScroll"
         static let labels = "settings.agentLabels"
+        static let automationNotifications = "settings.automationNotifications"
+        static let automationPolicy = "settings.automationPolicy"
+        static let floatingStatus = "settings.floatingStatus"
     }
 
     init() {
@@ -89,5 +97,8 @@ final class SettingsStore: ObservableObject {
         self.desktopModeEnabled = d.object(forKey: Keys.desktopMode) as? Bool ?? false
         self.autoScrollEnabled = d.object(forKey: Keys.autoScroll) as? Bool ?? true
         self.showAgentLabelsEnabled = d.object(forKey: Keys.labels) as? Bool ?? true
+        self.automationNotificationsEnabled = d.object(forKey: Keys.automationNotifications) as? Bool ?? true
+        self.automationDefaultPolicy = ConfirmationPolicy(rawValue: d.string(forKey: Keys.automationPolicy) ?? "") ?? .riskyActions
+        self.floatingStatusEnabled = d.object(forKey: Keys.floatingStatus) as? Bool ?? true
     }
 }

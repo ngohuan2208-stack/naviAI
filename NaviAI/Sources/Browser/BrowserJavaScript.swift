@@ -399,12 +399,52 @@ enum BrowserJavaScript {
         });
       }
 
+      function focus(id) {
+        var el = resolve(id);
+        if (!el) { return JSON.stringify({ ok: false }); }
+        var target = effective(el);
+        scrollToEl(target);
+        try { target.focus({ preventScroll: true }); } catch (e) { try { target.focus(); } catch (e2) {} }
+        return JSON.stringify({ ok: document.activeElement === target });
+      }
+
+      function appendText(id, text) {
+        var el = resolve(id);
+        if (!el) { return JSON.stringify({ ok: false, len: 0 }); }
+        var target = effective(el);
+        if (target.nodeName !== 'INPUT' && target.nodeName !== 'TEXTAREA' && !target.isContentEditable) {
+          var inner = target.querySelector('input,textarea,[contenteditable=\"true\"]');
+          if (inner) { target = inner; }
+        }
+        if (target.nodeName !== 'INPUT' && target.nodeName !== 'TEXTAREA' && !target.isContentEditable) {
+          return JSON.stringify({ ok: false, len: 0 });
+        }
+        try { target.focus({ preventScroll: true }); } catch (e) {}
+        var textVal = String(text || '');
+        if (target.isContentEditable) {
+          try { document.execCommand('insertText', false, textVal); } catch (e) { target.textContent += textVal; }
+          target.dispatchEvent(new Event('input', { bubbles: true }));
+        } else {
+          var merged = (target.value || '') + textVal;
+          setValue(target, merged);
+        }
+        return JSON.stringify({ ok: true, len: (target.value || target.textContent || '').length });
+      }
+
+      function exists(id) {
+        var el = resolve(id);
+        return JSON.stringify({ ok: !!el });
+      }
+
       window.__navi = {
         snapshot: snapshot,
         locate: locate,
         click: click,
         clickAt: clickAt,
         type: type,
+        focus: focus,
+        appendText: appendText,
+        exists: exists,
         findText: findText,
         scrollBy: scrollBy,
         scrollToId: scrollToId,
@@ -470,5 +510,41 @@ enum BrowserJavaScript {
 
     static func infoExpr() -> String {
         "window.__navi.info()"
+    }
+
+    // MARK: - Natural interaction helpers
+
+    /// Page readiness + DOM mutation counter, used by InteractionEngine to
+    /// wait until dynamic content has finished rendering.
+    static func readinessExpr() -> String {
+        """
+        (function() {
+          var n = 0;
+          try { n = document.querySelectorAll('a,button,input,select,textarea,[role="button"]').length; } catch (e) {}
+          return JSON.stringify({ ready: document.readyState, interactiveCount: n });
+        })()
+        """
+    }
+
+    /// Focus an input/textarea/select without changing its value - the first
+    /// half of a natural "tap the field, then type" interaction.
+    static func focusExpr(id: Int) -> String {
+        "window.__navi.focus(\(id))"
+    }
+
+    /// Appends a chunk of text to an input using the KeyboardEvent-aware
+    /// setter (React/Vue compatible), keeping any existing content. Returns
+    /// JSON {ok, len}.
+    static func appendTextExpr(id: Int, text: String) -> String {
+        let escaped = text
+            .replacingOccurrences(of: "\\", with: "\\\\")
+            .replacingOccurrences(of: "\"", with: "\\\"")
+            .replacingOccurrences(of: "\n", with: "\\n")
+        return "window.__navi.appendText(\(id), \"\(escaped)\")"
+    }
+
+    /// True when the element referenced by the findText snapshot still exists.
+    static func elementExistsExpr(id: Int) -> String {
+        "window.__navi.exists(\(id))"
     }
 }

@@ -17,6 +17,7 @@ final class AppModel: ObservableObject {
     var settings: SettingsStore
     let providers: ProviderStore
     let browser: BrowserStore
+    let automation: AutomationScheduler
 
     init() {
         let settings = SettingsStore()
@@ -24,11 +25,13 @@ final class AppModel: ObservableObject {
         self.settings = settings
         self.providers = providers
         self.browser = BrowserStore(settings: settings, providers: providers)
+        self.automation = AutomationScheduler(browser: browser)
     }
 }
 
 struct RootView: View {
     @EnvironmentObject var app: AppModel
+    @Environment(\.scenePhase) private var scenePhase
     @State private var settingsTick = 0
 
     var body: some View {
@@ -39,10 +42,26 @@ struct RootView: View {
                 OnboardingRootView()
             }
         }
+        .environmentObject(app.automation)
+        .environmentObject(app.automation.engine)
         .preferredColorScheme(scheme)
         .tint(.accentColor)
         .onReceive(app.settings.objectWillChange) { _ in
             settingsTick += 1
+        }
+        .onChange(of: scenePhase) { phase in
+            switch phase {
+            case .active:
+                AutomationNotification.shared.requestPermissionOnce()
+                app.automation.restoreAfterBackground()
+            case .background:
+                // Persist task state / current step / progress so the run can
+                // be offered for resume on the next launch (iOS background
+                // limits mean the run itself cannot continue unbounded).
+                app.automation.persistForBackground()
+            default:
+                break
+            }
         }
     }
 
@@ -59,5 +78,10 @@ struct RootView: View {
 struct MainContainerView: View {
     var body: some View {
         BrowserHomeView()
+            // Confirmation alerts + resume prompt + floating task card live
+            // above the browser; purely functional, never decorative.
+            .overlay {
+                AutomationOverlays()
+            }
     }
 }

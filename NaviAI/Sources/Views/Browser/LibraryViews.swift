@@ -3,40 +3,121 @@ import WebKit
 
 struct HistorySheet: View {
     @ObservedObject var store: BrowserStore
+    @ObservedObject private var history = HistoryStore.shared
     @Environment(\.dismiss) private var dismiss
+    @State private var query = ""
+    @State private var selection = Set<UUID>()
+    @State private var isSelecting = false
+    @State private var pendingClear: HistoryStore.ClearRange?
+
+    private var selectionBinding: Binding<Set<UUID>?> {
+        Binding(get: { isSelecting ? selection : nil },
+                set: { newValue in if let newValue { selection = newValue } })
+    }
+
+    private var results: [BrowserHistoryEntry] {
+        var list = history.search(query)
+        list.reverse() // newest first
+        return list
+    }
 
     var body: some View {
         Group {
-            if store.history.isEmpty {
+            if history.entries.isEmpty {
                 ContentUnavailable("No history yet", systemImage: "clock.arrow.circlepath", message: "Pages you visit appear here. History never leaves your device.")
             } else {
-                List {
-                    ForEach(store.history) { visit in
-                        Button {
-                            if let url = URL(string: visit.urlString) {
-                                store.loadURL(url)
-                                dismiss()
-                            }
-                        } label: {
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text(visit.title).font(.body)
-                                Text(visit.urlString).font(.caption).foregroundStyle(.secondary).lineLimit(1)
-                            }
-                        }
-                        .foregroundStyle(.primary)
-                    }
-                    .onDelete { store.removeHistory(at: $0) }
-                }
+                list
             }
         }
         .navigationTitle("History")
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
-                if !store.history.isEmpty {
-                    Button("Clear") { store.clearHistory() }
+                Menu {
+                    if isSelecting {
+                        Button("Select All") {
+                            selection = Set(results.map(\.id))
+                        }
+                        Button("Delete Selected", role: .destructive) {
+                            history.delete(entryIDs: selection)
+                            selection.removeAll()
+                            isSelecting = false
+                        }
+                        Button("Done") {
+                            isSelecting = false
+                            selection.removeAll()
+                        }
+                    } else {
+                        Button("Select") { isSelecting = true }
+                        ForEach(HistoryStore.ClearRange.allCases) { range in
+                            Button("Clear \(range.label)", role: .destructive) {
+                                pendingClear = range
+                            }
+                        }
+                    }
+                } label: {
+                    Image(systemName: "ellipsis.circle")
                 }
             }
         }
+        .confirmationDialog("Clear history",
+                            isPresented: Binding(get: { pendingClear != nil }, set: { if !$0 { pendingClear = nil } }),
+                            titleVisibility: .visible) {
+            Button(pendingClear?.label ?? "Clear", role: .destructive) {
+                if let range = pendingClear { history.clear(range: range) }
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("This cannot be undone.")
+        }
+    }
+
+    private var list: some View {
+        List(selection: isSelecting ? selectionBinding : nil) {
+            ForEach(results) { entry in
+                Button {
+                    if isSelecting {
+                        if selection.contains(entry.id) {
+                            selection.remove(entry.id)
+                        } else {
+                            selection.insert(entry.id)
+                        }
+                    } else if let url = URL(string: entry.url) {
+                        store.loadURL(url)
+                        dismiss()
+                    }
+                } label: {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(entry.title).lineLimit(1)
+                        HStack(spacing: 6) {
+                            Text(entry.host)
+                                .foregroundStyle(.secondary)
+                                .lineLimit(1)
+                            Text(entry.visitedAt.formatted(date: .abbreviated, time: .shortened))
+                                .font(.caption2)
+                                .foregroundStyle(.tertiary)
+                        }
+                        .font(.caption)
+                    }
+                }
+                .foregroundStyle(.primary)
+            }
+            .onDelete { offsets in
+                let ids = offsets.compactMap { results[safe: $0]?.id }
+                history.delete(entryIDs: Set(ids))
+            }
+        }
+        .searchable(text: $query, prompt: "Search title or URL")
+        .overlay {
+            if results.isEmpty {
+                ContentUnavailable("No matches", systemImage: "magnifyingglass", message: "Try a different search.")
+            }
+        }
+    }
+}
+
+private extension Array {
+    subscript(safe index: Int) -> Element? {
+        indices.contains(index) ? self[index] : nil
     }
 }
 
@@ -131,7 +212,7 @@ struct DownloadsSheet: View {
     }
 }
 
-private struct ContentUnavailable: View {
+struct ContentUnavailable: View {
     let title: String
     let systemImage: String
     let message: String

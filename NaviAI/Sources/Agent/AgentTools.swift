@@ -279,6 +279,8 @@ extension BrowserStore {
             let cx = located.atX ?? item.rect.centerX
             let cy = located.atY ?? item.rect.centerY
             let point = CGPoint(x: cx, y: cy)
+            // Natural pacing: never rapid-fire clicks.
+            await InteractionEngine.shared.pauseBetweenActions()
             await moveAICursor(to: point, label: "AI clicking…")
             await tapPulse(at: point)
 
@@ -290,14 +292,29 @@ extension BrowserStore {
                 return clickResult.error ?? "Click on element \(id) failed."
             }
 
-            // Wait briefly for any navigation the click may have started.
+            // Wait for any navigation the click may have started, then for
+            // dynamic content to finish mutating (natural render wait).
             try? await Task.sleep(nanoseconds: 700_000_000)
             if activeTab?.webView.isLoading == true {
                 _ = await waitForPageSettle(timeout: 30)
             }
+            _ = await InteractionEngine.shared.waitUntilPageReady(coordinator: activeCoordinator, timeout: 8)
             try? await Task.sleep(nanoseconds: 300_000_000)
 
             let clickedText = item.text.isEmpty ? "<\(item.tag)>" : item.text
+            AgentActivityLog.shared.add("Clicked " + clickedText)
+
+            // Natural pacing: brief beat for any navigation the click may
+            // have started, then wait for the page to settle.
+            await InteractionEngine.shared.markAction()
+            try? await Task.sleep(nanoseconds: UInt64(InteractionEngine.shared.postClickDelay * 1_000_000_000))
+            if activeTab?.webView.isLoading == true {
+                _ = await waitForPageSettle(timeout: 30)
+            } else {
+                _ = await InteractionEngine.shared.waitUntilPageReady(coordinator: activeCoordinator, timeout: 8)
+            }
+            await InteractionEngine.shared.pauseBetweenActions()
+
             return "Clicked \(clickedText). If the page changed, call readPage to see the new content."
         } catch {
             return "Click on element \(id) failed: \(error.localizedDescription)"
@@ -333,17 +350,69 @@ extension BrowserStore {
             let cx = located.atX ?? item.rect.centerX
             let cy = located.atY ?? item.rect.centerY
             let point = CGPoint(x: cx, y: cy)
+            // Natural flow: pace -> move cursor -> tap the field (focus) ->
+            // settle -> type in human-sized chunks with micro pauses.
+            await InteractionEngine.shared.pauseBetweenActions()
             await moveAICursor(to: point, label: "AI typing…")
-
-            let typeValue = try await agentEvaluate(BrowserJavaScript.typeExpr(id: id, text: text, enter: pressEnter))
-            struct TypeResult: Codable { var ok: Bool; var x: Double?; var y: Double?; var submitted: Bool?; var len: Int? }
-            let result: TypeResult = try decodeJSResult(typeValue)
-            guard result.ok else {
-                return "Could not type into element \(id). The page may have changed - call readPage."
-            }
             await tapPulse(at: point)
 
-            if pressEnter || (result.submitted ?? false) {
+            _ = try? await agentEvaluate(BrowserJavaScript.focusExpr(id: id))
+            try? await Task.sleep(nanoseconds: 250_000_000)
+
+            let chunks = InteractionEngine.shared.typingChunks(for: text)
+            if chunks.isEmpty {
+                let typeValue = try await agentEvaluate(BrowserJavaScript.typeExpr(id: id, text: text, enter: pressEnter))
+                struct TypeResult: Codable { var ok: Bool; var x: Double?; var y: Double?; var submitted: Bool?; var len: Int? }
+                let result: TypeResult = try decodeJSResult(typeValue)
+                guard result.ok else {
+                    return "Could not type into element \(id). The page may have changed - call readPage."
+                }
+                await tapPulse(at: point)
+                if pressEnter || (result.submitted ?? false) {
+                    try? await Task.sleep(nanoseconds: 800_000_000)
+                    if activeTab?.webView.isLoading == true {
+                        _ = await waitForPageSettle(timeout: 30)
+                    }
+                }
+                try? await Task.sleep(nanoseconds: 300_000_000)
+                var summary = "Typed \(result.len ?? text.count) characters into \(item.placeholder.isEmpty ? "<\(item.tag)>" : item.placeholder)."
+                if result.submitted ?? false {
+                    summary += " The form was submitted."
+                }
+                AgentActivityLog.shared.add("Typed into \(item.placeholder.isEmpty ? "<\(item.tag)>" : item.placeholder)")
+                return summary
+            }
+
+            // Chunked natural typing: first chunk replaces, the rest append,
+            // mimicking a person typing in bursts instead of one giant paste.
+            var totalLen = 0
+            var submitted = false
+            for (i, chunk) in chunks.enumerated() {
+                try Task.checkCancellation()
+                let expr = i == 0
+                    ? BrowserJavaScript.typeExpr(id: id, text: chunk, enter: false)
+                    : BrowserJavaScript.appendTextExpr(id: id, text: chunk)
+                let chunkValue = try await agentEvaluate(expr)
+                struct ChunkResult: Codable { var ok: Bool; var submitted: Bool?; var len: Int? }
+                let chunkResult: ChunkResult = try decodeJSResult(chunkValue)
+                guard chunkResult.ok else {
+                    return "Could not type into element \(id). The page may have changed - call readPage."
+                }
+                totalLen = chunkResult.len ?? (totalLen + chunk.count)
+                submitted = submitted || (chunkResult.submitted ?? false)
+                await InteractionEngine.shared.typingPause()
+            }
+
+            await tapPulse(at: point)
+
+            if pressEnter {
+                let typeValue = try await agentEvaluate(BrowserJavaScript.typeExpr(id: id, text: "", enter: true))
+                struct EnterResult: Codable { var ok: Bool; var submitted: Bool? }
+                let enterResult: EnterResult = try decodeJSResult(typeValue)
+                submitted = submitted || (enterResult.submitted ?? false)
+            }
+
+            if pressEnter || submitted {
                 try? await Task.sleep(nanoseconds: 800_000_000)
                 if activeTab?.webView.isLoading == true {
                     _ = await waitForPageSettle(timeout: 30)
@@ -351,10 +420,11 @@ extension BrowserStore {
             }
             try? await Task.sleep(nanoseconds: 300_000_000)
 
-            var summary = "Typed \(result.len ?? text.count) characters into \(item.placeholder.isEmpty ? "<\(item.tag)>" : item.placeholder)."
-            if result.submitted ?? false {
+            var summary = "Typed \(totalLen) characters into \(item.placeholder.isEmpty ? "<\(item.tag)>" : item.placeholder)."
+            if submitted {
                 summary += " The form was submitted."
             }
+            AgentActivityLog.shared.add("Typed into \(item.placeholder.isEmpty ? "<\(item.tag)>" : item.placeholder)")
             return summary
         } catch {
             return "Typing into element \(id) failed: \(error.localizedDescription)"

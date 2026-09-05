@@ -61,7 +61,7 @@ private struct BrowserContentView: View {
     private func sheetView(for content: SheetContent) -> some View {
         NavigationStack {
             switch content {
-            case .history: HistorySheet(store: store)
+            case .history: BrowserHistoryView(store: store)
             case .bookmarks: BookmarksSheet(store: store)
             case .downloads: DownloadsSheet(store: store)
             case .siteData: SiteDataSheet(store: store)
@@ -128,6 +128,8 @@ private struct BrowserContentView: View {
             .buttonStyle(.plain)
             .disabled(store.activeTab?.webView.url == nil)
 
+            AgentModePicker(store: store)
+
             Menu {
                 Button {
                     store.newTab(url: nil, activate: true)
@@ -144,6 +146,11 @@ private struct BrowserContentView: View {
                     store.showsChatPanel = true
                 } label: {
                     Label("AI Chat", systemImage: "bubble.left.and.bubble.right.fill")
+                }
+                NavigationLink {
+                    AutomationRootView()
+                } label: {
+                    Label("Automation", systemImage: "wand.and.stars")
                 }
                 Button {
                     store.beginFind()
@@ -537,5 +544,35 @@ struct FindBarView: View {
         .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
         .shadow(color: .black.opacity(0.12), radius: 6, y: 2)
         .onAppear { focused = true }
+    }
+}
+
+// MARK: - Agent mode picker (toolbar: [View] [Interact] [Auto])
+
+struct AgentModePicker: View {
+    @ObservedObject var store: BrowserStore
+
+    var body: some View {
+        HStack(spacing: 4) {
+            ForEach(AgentMode.allCases) { mode in
+                Button {
+                    withAnimation(.easeOut(duration: 0.15)) {
+                        store.agentMode = mode
+                    }
+                } label: {
+                    Label(mode.label, systemImage: mode.symbol)
+                        .labelStyle(.titleAndIcon)
+                        .font(.caption2.weight(store.agentMode == mode ? .semibold : .regular))
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 5)
+                        .background(store.agentMode == mode ? Color.accentColor.opacity(0.16) : Color.clear,
+                                    in: Capsule())
+                        .foregroundStyle(store.agentMode == mode ? Color.accentColor : Color.secondary)
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .padding(3)
+        .background(Color(.secondarySystemBackground).opacity(0.6), in: Capsule())
     }
 }
