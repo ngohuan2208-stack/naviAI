@@ -306,7 +306,7 @@ extension BrowserStore {
 
             // Natural pacing: brief beat for any navigation the click may
             // have started, then wait for the page to settle.
-            await InteractionEngine.shared.markAction()
+            InteractionEngine.shared.markAction()
             try? await Task.sleep(nanoseconds: UInt64(InteractionEngine.shared.postClickDelay * 1_000_000_000))
             if activeTab?.webView.isLoading == true {
                 _ = await waitForPageSettle(timeout: 30)

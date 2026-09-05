@@ -61,7 +61,7 @@ private struct BrowserContentView: View {
     private func sheetView(for content: SheetContent) -> some View {
         NavigationStack {
             switch content {
-            case .history: BrowserHistoryView(store: store)
+            case .history: HistorySheet(store: store)
             case .bookmarks: BookmarksSheet(store: store)
             case .downloads: DownloadsSheet(store: store)
             case .siteData: SiteDataSheet(store: store)

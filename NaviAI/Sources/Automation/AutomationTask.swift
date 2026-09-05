@@ -259,7 +259,7 @@ struct AutomationTask: Codable, Identifiable, Equatable {
     }
 
     var hasBound: Bool {
-        maxRuns != nil || schedule.endDate != nil || schedule.kind == .runOnce ||
+        schedule.maxRuns != nil || schedule.endDate != nil || schedule.kind == .runOnce ||
         AutomationSchedule.parseClock(schedule.endTime) != nil
     }
 

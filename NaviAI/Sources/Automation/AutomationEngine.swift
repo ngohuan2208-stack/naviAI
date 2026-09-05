@@ -88,10 +88,8 @@ final class AutomationEngine: ObservableObject {
     // MARK: The run loop
 
     private func run(task: AutomationTask, runID: UUID, trigger: String) async {
-        let startedAt = Date()
         var stepsExecuted = 0
         var confirmations: [String] = []
-        var lastPageIndex: Int? = nil
         // Task recovery: when resuming a suspended run, continue AFTER the
         // last persisted step instead of restarting from scratch.
         let startStep = task.pendingRunState?.stepIndex ?? 0
@@ -228,7 +226,7 @@ final class AutomationEngine: ObservableObject {
             return nil
 
         case .navigate, .search, .readPage, .clickElement, .typeText, .scroll:
-            let arguments = try stepArguments(for: step, browser: browser)
+            let arguments = try await stepArguments(for: step, browser: browser)
             guard let toolName = step.kind.toolName else { return nil }
             let output = await browser.executeTool(named: toolName, argumentsJSON: arguments)
             if output.lowercased().contains("blocked") || output.lowercased().hasPrefix("could not") {
@@ -243,7 +241,7 @@ final class AutomationEngine: ObservableObject {
     /// Builds the tool-call arguments for a step. For click/type steps the
     /// step's `value` is a *text hint*; we resolve it to a live elementId by
     /// running findText against the page (real elements, no blind clicks).
-    private func stepArguments(for step: AutomationStep, browser: BrowserStore) throws -> String {
+    private func stepArguments(for step: AutomationStep, browser: BrowserStore) async throws -> String {
         switch step.kind {
         case .navigate:
             return Self.jsonString(["url": step.value])
@@ -258,7 +256,7 @@ final class AutomationEngine: ObservableObject {
             if let id = step.amount {
                 return Self.jsonString(["elementId": id])
             }
-            let id = try resolveElementID(matching: step.value, preferInput: false, browser: browser)
+            let id = try await resolveElementID(matching: step.value, preferInput: false, browser: browser)
             return Self.jsonString(["elementId": id])
         case .typeText:
             // Editor contract: `value` = field text hint, `note` = the text to
@@ -267,7 +265,7 @@ final class AutomationEngine: ObservableObject {
             if let id = step.amount {
                 return Self.jsonString(["elementId": id, "text": text])
             }
-            let id = try resolveElementID(matching: step.value, preferInput: true, browser: browser)
+            let id = try await resolveElementID(matching: step.value, preferInput: true, browser: browser)
             return Self.jsonString(["elementId": id, "text": text, "pressEnter": false])
         case .wait, .notify, .askLLM:
             return "{}"
@@ -277,7 +275,7 @@ final class AutomationEngine: ObservableObject {
     /// Resolves an element text hint (e.g. "Search") to the current elementId
     /// via the page's own findText engine. Refreshed on every run, so stale
     /// ids never accumulate across scheduled runs.
-    private func resolveElementID(matching hint: String, preferInput: Bool, browser: BrowserStore) throws -> Int {
+    private func resolveElementID(matching hint: String, preferInput: Bool, browser: BrowserStore) async throws -> Int {
         guard !hint.isEmpty else {
             throw AutomationEngineError.stepFailed("Element hint is empty for a click/type step.")
         }
