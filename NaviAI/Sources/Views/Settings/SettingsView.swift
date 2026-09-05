@@ -75,12 +75,14 @@ struct SettingsView: View {
                 ))
             }
 
-            Section("Privacy & Data") {
+            Section {
                 Button { clearAction = .history } label: { Label("Clear history", systemImage: "clock.arrow.circlepath") }
                 Button { clearAction = .bookmarks } label: { Label("Clear bookmarks", systemImage: "book") }
                 Button { clearAction = .downloads } label: { Label("Clear downloads", systemImage: "arrow.down.circle") }
                 Button { clearAction = .cookies } label: { Label("Clear cookies & site data", systemImage: "cookie") }
                 Button { clearAction = .cache } label: { Label("Clear cache", systemImage: "internaldrive") }
+            } header: {
+                Text("Privacy & Data")
             } footer: {
                 Text("NaviAI never uploads your browsing history anywhere. Requests go only to the AI provider you chose, with just the page context the agent needs.")
             }
