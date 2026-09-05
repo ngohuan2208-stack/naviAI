@@ -109,6 +109,78 @@ struct CursorState: Equatable {
     var isPressing: Bool = false
 }
 
+// MARK: - Agent modes
+
+/// The three ways the AI can engage with the browser.
+///
+/// - `.view`     : AI reads / understands / summarises / translates the current
+///                 page. It is strictly READ-ONLY — it never navigates, clicks
+///                 or types. Safe to run freely.
+/// - `.interact` : AI may control the browser (navigate, click, type, scroll…)
+///                 but asks for confirmation before impactful actions.
+/// - `.auto`     : AI plans and executes multi-step tasks on its own until it
+///                 produces a final answer, with confirmation guardrails for
+///                 risky actions.
+enum AgentMode: String, CaseIterable, Identifiable {
+    case view
+    case interact
+    case auto
+
+    var id: String { rawValue }
+
+    var label: String {
+        switch self {
+        case .view: return "View"
+        case .interact: return "Interact"
+        case .auto: return "Auto"
+        }
+    }
+
+    var symbol: String {
+        switch self {
+        case .view: return "eye"
+        case .interact: return "hand.tap"
+        case .auto: return "bolt"
+        }
+    }
+
+    /// Whether the agent is allowed to touch (navigate/click/type) the page.
+    /// View mode is strictly read-only.
+    var permitsInteraction: Bool { self != .view }
+
+    /// Extra rules injected into the agent system prompt.
+    var systemInstruction: String {
+        switch self {
+        case .view:
+            return """
+            OPERATING MODE: VIEW (read-only).
+            You are analysing the current page. Use readPage / findText to inspect it.
+            You may summarise, explain, translate, extract data or answer questions.
+            You must NEVER navigate, click, type, submit, scroll-to-act or change anything.
+            If the user asks you to act on the page, explain that they should switch to Interact mode.
+            """
+        case .interact:
+            return """
+            OPERATING MODE: INTERACT.
+            You may control the browser (navigate, click, type, scroll).
+            Before any impactful action (form submit, sending a message, purchasing,
+            deleting, changing account or financial info) you must clearly describe
+            it — the user will be asked to confirm.
+            """
+        case .auto:
+            return """
+            OPERATING MODE: AUTO (multi-step task).
+            Break the user's goal into steps and keep going until it is complete.
+            Search, open results, read pages, extract data, compare sources and
+            finally give a concise, well-structured answer in the user's language.
+            Do not stop after a single tool call — pursue the whole goal.
+            Before any impactful action (submit form / send / buy / delete / change
+            account) describe it clearly and stop for confirmation.
+            """
+        }
+    }
+}
+
 // MARK: - Persisted session snapshot
 
 /// A single restored tab: its URL plus a human-friendly title so re-opening a
@@ -154,6 +226,14 @@ final class BrowserStore: ObservableObject {
     @Published var activePrompt: UserPrompt?
     @Published var cursor = CursorState()
     @Published var showsChatPanel = false
+    @Published var agentMode: AgentMode = .interact
+    // Auto-mode progress surfaced to the UI.
+    @Published var taskGoal: String = ""
+    @Published var agentStep: Int = 0
+
+    // Find in page
+    @Published var isFindActive = false
+    @Published var findQuery: String = ""
 
     // Internals
     var agentTask: Task<Void, Never>?
@@ -246,6 +326,16 @@ final class BrowserStore: ObservableObject {
         _ = newTab(url: url, activate: true)
     }
 
+    /// Opens a copy of the active tab (same URL, same title).
+    func duplicateActiveTab() {
+        guard let tab = activeTab, let url = tab.webView.url ?? tab.url else {
+            _ = newTab(url: nil, activate: true)
+            return
+        }
+        let dup = newTab(url: url, activate: true)
+        dup.title = tab.title
+    }
+
     // MARK: - Navigation
 
     func loadAddress(_ raw: String) {
@@ -298,6 +388,36 @@ final class BrowserStore: ObservableObject {
     func stopWebLoading() {
         guard let wv = activeTab?.webView else { return }
         wv.stopLoading()
+    }
+
+    // MARK: - Find in page (native WKWebView, iOS 16+)
+
+    func beginFind() {
+        isFindActive = true
+        findQuery = ""
+        activeTab?.webView.find("", configuration: WKFindConfiguration()) { _ in }
+    }
+
+    func updateFindQuery(_ text: String) {
+        findQuery = text
+        // An empty query clears highlights (find takes a non-optional String).
+        let config = WKFindConfiguration()
+        config.backwards = false
+        activeTab?.webView.find(text, configuration: config) { _ in }
+    }
+
+    func findNext(_ backwards: Bool = false) {
+        guard !findQuery.isEmpty else { return }
+        let config = WKFindConfiguration()
+        config.backwards = backwards
+        activeTab?.webView.find(findQuery, configuration: config) { _ in }
+    }
+
+    func endFind() {
+        isFindActive = false
+        findQuery = ""
+        // Clear highlights by searching for an empty string.
+        activeTab?.webView.find("", configuration: WKFindConfiguration()) { _ in }
     }
 
     func requestDesktopSite(_ on: Bool) {

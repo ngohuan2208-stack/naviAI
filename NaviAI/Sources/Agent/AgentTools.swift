@@ -68,6 +68,14 @@ extension BrowserStore {
 
     func executeTool(named name: String, argumentsJSON: String) async -> String {
         let args = arguments(from: argumentsJSON)
+        // Hard safety net for View mode: even if a stale/extra tool call slips
+        // through the filtered tool list, interaction tools are refused here.
+        if !agentMode.permitsInteraction {
+            let readOnly = ["readPage", "findText"]
+            if !readOnly.contains(name) {
+                return "Blocked: View mode is read-only. Switch to Interact or Auto mode to perform this action."
+            }
+        }
         switch name {
         case "openURL":
             return await toolOpenURL(urlString: stringArg(args, "url"))

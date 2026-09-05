@@ -94,7 +94,15 @@ private struct BrowserContentView: View {
                         addressFocused = false
                     }
                 if store.webIsLoading {
-                    ProgressView().controlSize(.small)
+                    Button {
+                        store.stopWebLoading()
+                    } label: {
+                        Image(systemName: "xmark")
+                            .font(.system(size: 11, weight: .semibold))
+                            .foregroundStyle(.secondary)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Stop loading")
                 } else {
                     Button {
                         store.reloadPage()
@@ -127,9 +135,35 @@ private struct BrowserContentView: View {
                     Label("New Tab", systemImage: "plus.square.on.square")
                 }
                 Button {
+                    store.duplicateActiveTab()
+                } label: {
+                    Label("Duplicate Tab", systemImage: "doc.on.doc")
+                }
+                .disabled(store.activeTab?.webView.url == nil)
+                Button {
                     store.showsChatPanel = true
                 } label: {
                     Label("AI Chat", systemImage: "bubble.left.and.bubble.right.fill")
+                }
+                Button {
+                    store.beginFind()
+                } label: {
+                    Label("Find in Page", systemImage: "magnifyingglass")
+                }
+                .disabled(store.activeTab?.webView.url == nil)
+                Divider()
+                Button {
+                    if let url = store.activeTab?.webView.url ?? store.activeTab?.url {
+                        UIPasteboard.general.string = url.absoluteString
+                    }
+                } label: {
+                    Label("Copy Page URL", systemImage: "doc.on.doc.fill")
+                }
+                .disabled(store.activeTab?.webView.url == nil)
+                if let shareURL = store.activeTab?.webView.url ?? store.activeTab?.url {
+                    ShareLink(item: shareURL) {
+                        Label("Share Page", systemImage: "square.and.arrow.up")
+                    }
                 }
                 Divider()
                 Button {
@@ -201,6 +235,10 @@ private struct BrowserContentView: View {
                     }
                     if let prompt = store.activePrompt {
                         PromptCard(prompt: prompt, store: store)
+                    }
+                    Spacer()
+                    if store.isFindActive {
+                        FindBarView(store: store)
                     }
                 }
                 .padding(10)
@@ -442,5 +480,62 @@ private struct TabChipView: View {
         .foregroundStyle(isActive ? Color.white : Color.primary)
         .contentShape(Capsule())
         .onTapGesture(perform: onSelect)
+    }
+}
+
+// MARK: - Find in page bar
+
+struct FindBarView: View {
+    @ObservedObject var store: BrowserStore
+    @FocusState private var focused: Bool
+
+    var body: some View {
+        HStack(spacing: 8) {
+            Image(systemName: "magnifyingglass")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            TextField("Find in page", text: Binding(
+                get: { store.findQuery },
+                set: { store.updateFindQuery($0) }
+            ))
+            .font(.subheadline)
+            .autocapitalization(.none)
+            .disableAutocorrection(true)
+            .focused($focused)
+            .submitLabel(.search)
+            .onSubmit { store.findNext() }
+            .textFieldStyle(.plain)
+
+            Button {
+                store.findNext()
+            } label: {
+                Image(systemName: "chevron.down")
+                    .font(.caption.weight(.semibold))
+            }
+            .buttonStyle(.plain)
+            .disabled(store.findQuery.isEmpty)
+
+            Button {
+                store.findNext(true)
+            } label: {
+                Image(systemName: "chevron.up")
+                    .font(.caption.weight(.semibold))
+            }
+            .buttonStyle(.plain)
+            .disabled(store.findQuery.isEmpty)
+
+            Button {
+                store.endFind()
+            } label: {
+                Text("Done")
+                    .font(.caption.weight(.semibold))
+            }
+            .buttonStyle(.plain)
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
+        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .shadow(color: .black.opacity(0.12), radius: 6, y: 2)
+        .onAppear { focused = true }
     }
 }

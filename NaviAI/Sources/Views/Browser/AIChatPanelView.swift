@@ -39,6 +39,11 @@ struct AIChatPanelSheet: View {
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
                         Spacer()
+                        if store.agentMode == .auto && store.agentStep > 0 {
+                            Text("Step \(store.agentStep)/30")
+                                .font(.caption2.monospacedDigit())
+                                .foregroundStyle(.tertiary)
+                        }
                         Button {
                             store.stopAgent()
                         } label: {
@@ -55,6 +60,7 @@ struct AIChatPanelSheet: View {
                     .padding(.vertical, 8)
                 }
 
+                modePicker
                 bottomBar
             }
             .navigationTitle("AI Chat")
@@ -115,6 +121,36 @@ struct AIChatPanelSheet: View {
         }
         .frame(maxWidth: .infinity)
         .padding(.top, 60)
+    }
+
+    /// Mode selector: View (read-only) / Interact / Auto.
+    private var modePicker: some View {
+        HStack(spacing: 8) {
+            ForEach(AgentMode.allCases) { mode in
+                Button {
+                    store.agentMode = mode
+                } label: {
+                    HStack(spacing: 4) {
+                        Image(systemName: mode.symbol)
+                            .font(.caption2)
+                        Text(mode.label)
+                            .font(.caption.weight(store.agentMode == mode ? .semibold : .regular))
+                    }
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 5)
+                    .background(
+                        store.agentMode == mode ? Color.accentColor : Color(.secondarySystemBackground),
+                        in: Capsule()
+                    )
+                    .foregroundStyle(store.agentMode == mode ? Color.white : Color.secondary)
+                }
+                .buttonStyle(.plain)
+                .disabled(store.isAgentRunning)
+            }
+            Spacer()
+        }
+        .padding(.horizontal, 14)
+        .padding(.bottom, 4)
     }
 
     private var bottomBar: some View {

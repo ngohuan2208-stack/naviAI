@@ -17,6 +17,7 @@ extension BrowserStore {
         turns.append(ChatTurn(role: .user, kind: .text, text: text))
         apiHistory.append(.userText(text))
         captchaPrompted = false
+        taskGoal = text
 
         isAgentRunning = true
         agentStatus = .thinking
@@ -66,7 +67,7 @@ extension BrowserStore {
             ["type": "object", "properties": props, "required": required]
         }
 
-        return [
+        let all: [AgentToolSpec] = [
             AgentToolSpec(name: "openURL",
                           description: "Open a specific URL (http/https) in the current tab and wait for it to load.",
                           parameters: schema(["url"], ["url": str("url", "The full URL to open, e.g. https://example.com/page")])),
@@ -102,6 +103,13 @@ extension BrowserStore {
             AgentToolSpec(name: "switchTab", description: "Switch to another open tab by its index (0-based, see the tab list in readPage).", parameters: schema(["index"], ["index": int])),
             AgentToolSpec(name: "closeTab", description: "Close a tab by index (optional). Without index closes the current tab.", parameters: schema([], ["index": int]))
         ]
+
+        // View mode is strictly read-only: only expose page-inspection tools so
+        // the model physically cannot interact with the page.
+        if !agentMode.permitsInteraction {
+            return all.filter { ["readPage", "findText"].contains($0.name) }
+        }
+        return all
     }
 
     // MARK: Conversation helpers
@@ -132,6 +140,7 @@ extension BrowserStore {
 
         var stepCount = 0
         let maxSteps = 30
+        agentStep = 0
 
         while true {
             if Task.isCancelled {
@@ -189,6 +198,7 @@ extension BrowserStore {
                         let result = await executeTool(named: call.name, argumentsJSON: call.argumentsJSON)
                         apiHistory.append(.toolResult(toolCallID: call.id, content: result))
                         stepCount += 1
+                        agentStep = stepCount
                         if stepCount >= maxSteps {
                             finishWith(info: "Reached the maximum number of actions (\(maxSteps)). Please continue with a new request.")
                             return
@@ -270,6 +280,8 @@ extension BrowserStore {
     private func agentSystemPrompt(pageContext: String) -> String {
         """
         You are NaviAI, an AI browser agent running inside a WKWebView on iOS. You control a real browser with tools.
+
+        \(agentMode.systemInstruction)
 
         Page context:
         \(pageContext)

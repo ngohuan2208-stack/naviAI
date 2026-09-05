@@ -81,7 +81,7 @@ final class SettingsStore: ObservableObject {
         let d = UserDefaults.standard
         self.onboarded = d.object(forKey: Keys.onboarded) as? Bool ?? false
         self.appearance = AppearanceMode(rawValue: d.string(forKey: Keys.appearance) ?? "") ?? .system
-        self.searchEngine = SearchEngine(rawValue: d.string(forKey: Keys.searchEngine) ?? "") ?? .google
+        self.searchEngine = SearchEngine(rawValue: d.string(forKey: Keys.searchEngine) ?? "") ?? .duckduckgo
         self.aiCursorEnabled = d.object(forKey: Keys.cursor) as? Bool ?? true
         self.cursorAnimationsEnabled = d.object(forKey: Keys.cursorAnimations) as? Bool ?? true
         self.aiConfirmationEnabled = d.object(forKey: Keys.confirm) as? Bool ?? true
