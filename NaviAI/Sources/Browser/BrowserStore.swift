@@ -128,6 +128,7 @@ enum AgentMode: String, CaseIterable, Identifiable {
     case view
     case interact
     case auto
+    case debug
 
     var id: String { rawValue }
 
@@ -136,6 +137,7 @@ enum AgentMode: String, CaseIterable, Identifiable {
         case .view: return "View"
         case .interact: return "Interact"
         case .auto: return "Auto"
+        case .debug: return "Debug"
         }
     }
 
@@ -144,6 +146,7 @@ enum AgentMode: String, CaseIterable, Identifiable {
         case .view: return "eye"
         case .interact: return "hand.tap"
         case .auto: return "bolt"
+        case .debug: return "ladybug"
         }
     }
 
@@ -179,6 +182,24 @@ enum AgentMode: String, CaseIterable, Identifiable {
             Do not stop after a single tool call — pursue the whole goal.
             Before any impactful action (submit form / send / buy / delete / change
             account) describe it clearly and stop for confirmation.
+            """
+        case .debug:
+            return """
+            OPERATING MODE: DEBUG (web diagnostics).
+            Diagnose why a page is broken. Work through this exact sequence:
+            1. OBSERVE — read the page, note the URL/title and what looks broken.
+            2. INSPECT DOM — use readPage / findText to understand structure.
+            3. INSPECT CONSOLE — surface page JS errors/warnings to the user.
+            4. INSPECT NETWORK — note failed HTTP requests (4xx/5xx), CORS, timeouts.
+            5. ANALYSE — cross-reference console errors with failed network requests.
+            6. EXPLAIN THE PROBLEM — state the concrete Problem.
+            7. PROVIDE EVIDENCE — quote the exact console/network error(s).
+            8. POSSIBLE CAUSE — most likely root cause, ranked.
+            9. SUGGESTED FIX — concrete next steps for the developer/user.
+            Always give a structured answer: Problem / Evidence / Possible cause /
+            Suggested fix. NEVER claim a diagnosis you did not observe. Do NOT edit
+            the page, execute arbitrary JS, or change any file unless the user
+            explicitly grants permission and it is within the page scope.
             """
         }
     }
@@ -231,6 +252,8 @@ final class BrowserStore: ObservableObject {
     @Published var showsChatPanel = false
     @Published var showsWelcome = false
     @Published var showsDevTools = false
+    /// Which DevTools panel tab to open ("console", "network", "elements", "storage", "debug").
+    @Published var devToolsOpenTab: String = "console"
     @Published var showsNetworkCenter = false
     @Published var showsImageStudio = false
     @Published var showsResearch = false

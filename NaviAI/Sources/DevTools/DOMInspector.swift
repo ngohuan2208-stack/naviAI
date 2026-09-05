@@ -1,6 +1,32 @@
 import Foundation
 import WebKit
 
+// MARK: - Inspected element model
+
+/// Everything captured when the user taps an element in "Select Element" mode.
+/// Text and attributes are truncated/redacted by the page script; nothing
+/// sensitive is persisted anywhere.
+struct ElementInspection: Codable, Equatable, Identifiable {
+    var id: UUID = UUID()
+    var tag: String
+    var idAttribute: String?
+    var classes: [String]
+    var attributes: [String: String]
+    var text: String
+    var parentTag: String?
+    var childCount: Int
+    var selector: String
+    var boundingBox: String
+
+    /// Human-friendly one-liner, e.g. `<button#submit.submit>`.
+    var displayLabel: String {
+        var s = tag
+        if let idAttribute, !idAttribute.isEmpty { s += "#\(idAttribute)" }
+        if !classes.isEmpty { s += "." + classes.joined(separator: ".") }
+        return "<\(s)>"
+    }
+}
+
 // MARK: - DOM inspector bridge
 
 /// Runs inspection JavaScript in the page and feeds results to DevToolsStore.
@@ -65,6 +91,45 @@ final class DOMInspector {
         let raw = try? await coordinator?.evaluate(highlightScript(text: text))
         guard let value = raw ?? nil else { return 0 }
         return value as? Int ?? 0
+    }
+
+    // MARK: - Select Element mode (tap-in-page inspector)
+
+    /// Turns on the in-page "tap an element to inspect" overlay. The user taps
+    /// the live page; the tapped element is highlighted and its details are
+    /// stored on `window.__naviPicked` for `readSelectedElement()` to retrieve.
+    /// Uses only public `evaluateJavaScript`. Returns false if injection failed.
+    @discardableResult
+    func beginElementSelection() async -> Bool {
+        guard let raw = try? await coordinator?.evaluate(selectModeStartScript),
+              let value = raw ?? nil else { return false }
+        return (value as? String) == "started"
+    }
+
+    /// Removes the Select Element overlay and stops capturing taps.
+    func cancelElementSelection() async {
+        _ = try? await coordinator?.evaluate(selectModeStopScript)
+        store.setInspectedElement(nil)
+    }
+
+    /// Reads the element the user last picked and exposes it to the store.
+    /// Also clears the in-page pick so the same tap is not re-read twice.
+    func readSelectedElement() async -> ElementInspection? {
+        let raw = try? await coordinator?.evaluate(readPickScript)
+        guard let value = raw ?? nil, let json = value as? String,
+              let data = json.data(using: .utf8),
+              let element = try? JSONDecoder().decode(ElementInspection.self, from: data) else {
+            return nil
+        }
+        store.setInspectedElement(element)
+        _ = try? await coordinator?.evaluate("try { window.__naviPicked = null; } catch(e){}")
+        return element
+    }
+
+    /// Builds a `document.querySelectorAll`-style selector string for the given
+    /// element inspection (the page already computed it) after redaction.
+    func safeCopySelector(_ element: ElementInspection) -> String {
+        Redactor.redactText(element.selector)
     }
 
     private static func pairs(from any: Any?) -> [(String, String)] {
@@ -157,6 +222,117 @@ extension DOMInspector {
         case nil: return "undefined"
         case .some(let v): return Redactor.redactText(String(describing: v))
         }
+    }
+
+    // MARK: Select-element scripts
+
+    /// Installs a lightweight, reversible tap-to-inspect overlay on the live
+    /// page. Uses the public WebKit API only; no private selectors.
+    var selectModeStartScript: String {
+        """
+        (function(){
+          if (window.__naviPickMode) return 'started';
+          window.__naviPickMode = true;
+          window.__naviPicked = null;
+          var hint = document.createElement('div');
+          hint.id = 'navi-inspect-hint';
+          hint.textContent = 'Navi inspect: tap an element (Esc to cancel)';
+          hint.style.cssText = 'position:fixed;top:12px;right:12px;z-index:2147483647;background:#7C6BFF;color:#fff;font:12px -apple-system,system-ui,sans-serif;padding:6px 10px;border-radius:8px;box-shadow:0 2px 10px rgba(0,0,0,.35);pointer-events:none;';
+          document.documentElement.appendChild(hint);
+          var outline = null;
+          function selectorOf(el){
+            var path = [], node = el;
+            while (node && node.nodeType === 1 && path.length < 6) {
+              var p = node.tagName.toLowerCase();
+              if (node.id) p += '#' + node.id;
+              if (typeof node.className === 'string') {
+                var cls = node.className.trim().split(/\\s+/).filter(Boolean).slice(0,2);
+                if (cls.length) p += '.' + cls.join('.');
+              }
+              if (node.parentElement && !node.id) {
+                var kids = node.parentElement.children, same = 1;
+                for (var i = 0; i < kids.length; i++) {
+                  if (kids[i] === node) break;
+                  if (kids[i].tagName === node.tagName) same++;
+                }
+                if (kids.length > 1) p += ':nth-of-type(' + same + ')';
+              }
+              path.unshift(p);
+              if (node.id) break;
+              node = node.parentElement;
+            }
+            return path.join(' > ');
+          }
+          function describe(el){
+            var attrs = {};
+            for (var i = 0; i < el.attributes.length; i++) {
+              var a = el.attributes[i];
+              if (a.name !== 'style') attrs[a.name] = a.value;
+            }
+            var parentTag = el.parentElement ? el.parentElement.tagName.toLowerCase() : null;
+            var r = el.getBoundingClientRect();
+            var box = Math.round(r.x) + ',' + Math.round(r.y) + ',' + Math.round(r.width) + ',' + Math.round(r.height);
+            var cls = (typeof el.className === 'string') ? el.className.trim().split(/\\s+/).filter(Boolean) : [];
+            return JSON.stringify({
+              tag: el.tagName.toLowerCase(),
+              id: el.id || null,
+              classes: cls,
+              attributes: attrs,
+              text: (el.textContent || '').replace(/\\s+/g, ' ').trim().slice(0, 200),
+              parentTag: parentTag,
+              childCount: el.children.length,
+              selector: selectorOf(el),
+              boundingBox: box
+            });
+          }
+          function onTap(e){
+            e.preventDefault(); e.stopPropagation(); e.stopImmediatePropagation();
+            var target = e.target;
+            if (outline) outline.remove();
+            outline = document.createElement('div');
+            outline.id = 'navi-inspect-outline';
+            outline.style.cssText = 'position:absolute;z-index:2147483646;pointer-events:none;outline:2px solid #7C6BFF;background:rgba(124,107,255,0.12);';
+            var r = target.getBoundingClientRect();
+            outline.style.left = (r.x + window.scrollX) + 'px';
+            outline.style.top = (r.y + window.scrollY) + 'px';
+            outline.style.width = r.width + 'px';
+            outline.style.height = r.height + 'px';
+            document.documentElement.appendChild(outline);
+            window.__naviPicked = describe(target);
+            finish();
+          }
+          function finish(){
+            window.__naviPickMode = false;
+            if (hint && hint.parentNode) hint.remove();
+            document.removeEventListener('click', onTap, true);
+            document.removeEventListener('keydown', onKey, true);
+            if (outline) setTimeout(function(){ if (outline && outline.parentNode) outline.remove(); }, 3000);
+          }
+          function onKey(e){ if (e.key === 'Escape') finish(); }
+          document.addEventListener('click', onTap, true);
+          document.addEventListener('keydown', onKey, true);
+          return 'started';
+        })();
+        """
+    }
+
+    /// Removes the tap-to-inspect overlay and restore normal page interaction.
+    var selectModeStopScript: String {
+        """
+        (function(){
+          window.__naviPickMode = false;
+          var h = document.getElementById('navi-inspect-hint');
+          if (h && h.parentNode) h.remove();
+          var o = document.getElementById('navi-inspect-outline');
+          if (o && o.parentNode) o.remove();
+          return true;
+        })();
+        """
+    }
+
+    /// Returns the JSON of the last picked element, or empty string if none.
+    var readPickScript: String {
+        "window.__naviPicked || ''"
     }
 
     /// Refresh all page-derived data at once.

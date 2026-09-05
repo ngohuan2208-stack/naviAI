@@ -8,7 +8,7 @@ struct AppIntent: Identifiable {
     enum ID: String {
         case navigate, searchWeb, newTab, newPrivateTab, reopenClosed
         case askAI, generateImage, deepResearch
-        case openDevTools, openHistory, openDownloads, openBookmarks
+        case openDevTools, debugPage, openHistory, openDownloads, openBookmarks
         case openNetwork, openAutomation, openSettings, findInPage
     }
 
@@ -144,6 +144,13 @@ extension AppIntentRouter {
         [
             AppIntent(id: .openDevTools, phrases: ["devtools", "dev tools", "công cụ nhà phát triển", "inspect"]) { app, _ in
                 app.browser.showsWelcome = false
+                app.browser.showsDevTools = true
+            },
+
+            AppIntent(id: .debugPage, phrases: ["debug", "debug website", "debug trang", "tại sao trang này lỗi", "sửa lỗi trang", "phân tích lỗi trang"]) { app, _ in
+                app.browser.showsWelcome = false
+                app.browser.agentMode = .debug
+                app.browser.devToolsOpenTab = "debug"
                 app.browser.showsDevTools = true
             },
 

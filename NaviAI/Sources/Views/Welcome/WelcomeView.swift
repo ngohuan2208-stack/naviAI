@@ -45,22 +45,15 @@ struct WelcomeLaunchView: View {
 
     private var header: some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text(greeting)
-                .font(.title2.bold())
-            Text("Ask anything, or pick up where you left off.")
+            Text("Navi AI")
+                .font(.system(size: 34, weight: .heavy, design: .rounded))
+            Text("Xin chào 👋")
+                .font(.title3.weight(.semibold))
+            Text("Bạn muốn làm gì hôm nay?")
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
         }
         .padding(.top, 8)
-    }
-
-    private var greeting: String {
-        let h = Calendar.current.component(.hour, from: Date())
-        switch h {
-        case 5..<12: return "Good morning"
-        case 12..<18: return "Good afternoon"
-        default: return "Good evening"
-        }
     }
 
     private var commandBox: some View {
@@ -70,9 +63,6 @@ struct WelcomeLaunchView: View {
                 .frame(minHeight: 64, maxHeight: 110)
                 .scrollContentBackground(.hidden)
             HStack {
-                Text("Search, open a site, ask AI…")
-                    .font(.caption)
-                    .foregroundStyle(.tertiary)
                 Spacer()
                 Button {
                     submitCommand()
@@ -81,6 +71,16 @@ struct WelcomeLaunchView: View {
                         .font(.title3)
                 }
                 .disabled(command.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+            }
+        }
+        .overlay(alignment: .topLeading) {
+            if command.isEmpty && !commandFocused {
+                Text("Search the web or ask Navi anything…")
+                    .font(.subheadline)
+                    .foregroundStyle(.tertiary)
+                    .padding(.top, 16)
+                    .padding(.leading, 12)
+                    .allowsHitTesting(false)
             }
         }
         .padding(12)
@@ -125,23 +125,29 @@ struct WelcomeLaunchView: View {
 
     private var quickActions: some View {
         LazyVGrid(columns: [GridItem(.adaptive(minimum: 84), spacing: 10)], spacing: 10) {
-            QuickAction(symbol: "plus.square.on.square", label: "New Tab") {
-                enterBrowser { app.browser.newTab(url: nil, activate: true) }
+            QuickAction(symbol: "magnifyingglass", label: "Tìm kiếm") {
+                enterBrowser { app.browser.showsCommandBar = true }
             }
-            QuickAction(symbol: "eye.slash", label: "Private") {
+            QuickAction(symbol: "sparkles", label: "Hỏi Navi") {
+                enterBrowser { app.browser.showsChatPanel = true }
+            }
+            QuickAction(symbol: "globe", label: "Mở trang web") {
+                enterBrowser { app.browser.showsCommandBar = true }
+            }
+            QuickAction(symbol: "doc.text.magnifyingglass", label: "Deep Research") {
+                enterBrowser { app.browser.showsResearch = true }
+            }
+            QuickAction(symbol: "bolt", label: "Auto Task") {
+                enterBrowser { app.browser.showsAutomation = true }
+            }
+            QuickAction(symbol: "photo", label: "Phân tích ảnh") {
+                enterBrowser { app.browser.showsImageStudio = true }
+            }
+            QuickAction(symbol: "wrench.and.screwdriver", label: "DevTools") {
+                enterBrowser { app.browser.showsDevTools = true }
+            }
+            QuickAction(symbol: "eye.slash", label: "Private Tab") {
                 enterBrowser { app.browser.openPrivateTab() }
-            }
-            QuickAction(symbol: "clock.arrow.circlepath", label: "History") {
-                app.browser.showsHistoryCenter = true
-            }
-            QuickAction(symbol: "square.grid.2x2", label: "Command Bar") {
-                app.browser.showsCommandBar = true
-            }
-            QuickAction(symbol: "doc.text.magnifyingglass", label: "Research") {
-                app.browser.showsResearch = true
-            }
-            QuickAction(symbol: "antenna.radiowaves.left.and.right", label: "Network") {
-                app.browser.showsNetworkCenter = true
             }
         }
     }

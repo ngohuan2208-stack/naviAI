@@ -1,4 +1,6 @@
 import Foundation
+import Combine
+import Network
 
 // MARK: - VPN manager (architecture only — NO simulation, NO fake status)
 

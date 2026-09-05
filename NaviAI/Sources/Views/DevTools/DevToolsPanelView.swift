@@ -1,3 +1,6 @@
+import SwiftUI
+import UIKit
+
 // MARK: - Console tab
 
 private struct DevConsoleTab: View {
@@ -77,14 +80,43 @@ private struct DevConsoleTab: View {
 
 private struct DevNetworkTab: View {
     @ObservedObject var store: DevToolsStore
+    @State private var filter = ""
+
+    private var filtered: [DevNetworkEntry] {
+        guard !filter.isEmpty else { return store.network }
+        return store.network.filter { entry in
+            entry.url.localizedCaseInsensitiveContains(filter)
+                || entry.method.localizedCaseInsensitiveContains(filter)
+                || entry.statusLabel.localizedCaseInsensitiveContains(filter)
+        }
+    }
 
     var body: some View {
-        Group {
-            if store.network.isEmpty {
-                ContentUnavailableView("No requests captured", systemImage: "arrow.left.arrow.right",
-                                       description: Text("Requests issued by this page appear here. Headers and bodies are never logged."))
-            } else {
-                List(store.network.reversed()) { entry in
+        VStack(spacing: 0) {
+            HStack {
+                Image(systemName: "magnifyingglass").foregroundStyle(.secondary)
+                TextField("Filter by URL / method / status", text: $filter)
+                    .textFieldStyle(.plain)
+                    .autocorrectionDisabled()
+                if !filter.isEmpty {
+                    Button { filter = "" } label: { Image(systemName: "xmark.circle.fill") }
+                        .foregroundStyle(.secondary)
+                }
+            }
+            .padding(8)
+            .background(Color(.secondarySystemBackground))
+            .clipShape(RoundedRectangle(cornerRadius: 8))
+            .padding(.horizontal)
+            .padding(.vertical, 6)
+
+            Group {
+                if store.network.isEmpty {
+                    Spacer()
+                    ContentUnavailableView("No requests captured", systemImage: "arrow.left.arrow.right",
+                                           description: Text("Requests issued by this page appear here. Headers and bodies are never logged."))
+                    Spacer()
+                } else {
+                    List(filtered.reversed()) { entry in
                     VStack(alignment: .leading, spacing: 3) {
                         HStack {
                             Text(entry.method)
@@ -122,6 +154,85 @@ private struct DevNetworkTab: View {
     }
 }
 
+}
+
+// MARK: - Debug tab
+// MARK: - Debug tab
+
+private struct DevDebugTab: View {
+    @ObservedObject var store: DevToolsStore
+    let inspector: DOMInspector
+    @EnvironmentObject var app: AppModel
+    @State private var running = false
+
+    var body: some View {
+        List {
+            Section {
+                Button {
+                    runAnalysis()
+                } label: {
+                    HStack {
+                        if running {
+                            ProgressView().controlSize(.small)
+                            Text("Analysing page…")
+                        } else {
+                            Label("Run AI diagnosis", systemImage: "stethoscope")
+                        }
+                    }
+                    .foregroundStyle(.tint)
+                }
+                .disabled(running)
+            } footer: {
+                Text("Cross-references console errors, failed network requests and the DOM, then reports Problem / Evidence / Cause / Fix. Uses your AI provider when configured, otherwise an offline heuristic. No sensitive data leaves the device except through your chosen provider.")
+            }
+
+            if let diagnosis = store.diagnosis {
+                diagnosisSection(diagnosis)
+            }
+        }
+        .listStyle(.insetGrouped)
+    }
+
+    private func diagnosisSection(_ d: DevToolsDiagnosis) -> some View {
+        Section("Result") {
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Problem").font(.caption.weight(.semibold)).foregroundStyle(.secondary)
+                Text(d.problem).font(.subheadline).foregroundStyle(.primary)
+            }
+            if !d.evidence.isEmpty {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Evidence").font(.caption.weight(.semibold)).foregroundStyle(.secondary)
+                    ForEach(d.evidence, id: \.self) { ev in
+                        Text(ev).font(.caption).foregroundStyle(.secondary).textSelection(.enabled)
+                    }
+                }
+            }
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Possible cause").font(.caption.weight(.semibold)).foregroundStyle(.secondary)
+                Text(d.possibleCause).font(.subheadline)
+            }
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Suggested fix").font(.caption.weight(.semibold)).foregroundStyle(.secondary)
+                Text(d.suggestedFix).font(.subheadline)
+            }
+            LabeledContent("Source", value: d.source == .llm ? "AI" : "Offline heuristic")
+        } footer: {
+            Text("Diagnosis is informational. Navi will only change code when you explicitly grant permission.")
+        }
+    }
+
+    private func runAnalysis() {
+        running = true
+        Task {
+            await inspector.refreshAll()
+            let config = app.providers.activeProvider
+            let key = config.flatMap { app.providers.apiKey(for: $0) } ?? ""
+            _ = await DevToolsAnalyzer.diagnose(store: store, config: config, apiKey: key, llm: app.browser.llm)
+            running = false
+        }
+    }
+}
+
 // MARK: - DevTools panel (bottom sheet)
 
 /// The on-device DevTools surface. On iPhone it is a bottom sheet
@@ -134,7 +245,7 @@ struct DevToolsPanelView: View {
     @State private var refreshing = false
 
     enum Panel: String, CaseIterable, Identifiable {
-        case console, network, elements, storage
+        case console, network, elements, storage, debug
         var id: String { rawValue }
         var label: String {
             switch self {
@@ -142,6 +253,7 @@ struct DevToolsPanelView: View {
             case .network: return "Network"
             case .elements: return "Elements"
             case .storage: return "Storage"
+            case .debug: return "Debug"
             }
         }
         var symbol: String {
@@ -150,6 +262,7 @@ struct DevToolsPanelView: View {
             case .network: return "arrow.left.arrow.right"
             case .elements: return "curlybraces.square"
             case .storage: return "internaldrive"
+            case .debug: return "ladybug"
             }
         }
     }
@@ -171,6 +284,12 @@ struct DevToolsPanelView: View {
                 case .network: DevNetworkTab(store: store)
                 case .elements: DevElementsTab(store: store, inspector: inspector)
                 case .storage: DevStorageTab(store: store, inspector: inspector)
+                case .debug: DevDebugTab(store: store, inspector: inspector)
+                }
+            }
+            .onAppear {
+                if let requested = Panel(rawValue: app.browser.devToolsOpenTab) {
+                    tab = requested
                 }
             }
             .navigationBarTitleDisplayMode(.inline)
@@ -211,8 +330,11 @@ struct DevToolsPanelView: View {
 private struct DevElementsTab: View {
     @ObservedObject var store: DevToolsStore
     let inspector: DOMInspector
+    @EnvironmentObject var app: AppModel
     @State private var searchText = ""
     @State private var matchCount: Int?
+    @State private var selecting = false
+    @State private var pasted = false
 
     var body: some View {
         List {
@@ -234,6 +356,25 @@ private struct DevElementsTab: View {
                         .foregroundStyle(.secondary)
                 }
             }
+            Section {
+                Button {
+                    toggleSelectMode()
+                } label: {
+                    HStack {
+                        Label(selecting ? "Selecting… tap an element on the page" : "Select Element",
+                              systemImage: selecting ? "target" : "cursorarrow.click.2")
+                        Spacer()
+                        if selecting {
+                            ProgressView().controlSize(.small)
+                        }
+                    }
+                }
+                if let el = store.inspectedElement {
+                    inspectedSection(el)
+                }
+            } footer: {
+                Text("Choose an element directly on the page to see its tag, selector, attributes, text and bounding box.")
+            }
             if store.domElements.isEmpty {
                 ContentUnavailableView("No elements loaded", systemImage: "curlybraces.square",
                                        description: Text("Tap the refresh button to read the page structure."))
@@ -253,7 +394,79 @@ private struct DevElementsTab: View {
                 }
             }
         }
-        .listStyle(.plain)
+        .listStyle(.insetGrouped)
+        .onDisappear { Task { await inspector.cancelElementSelection() } }
+    }
+
+    private func inspectedSection(_ el: ElementInspection) -> some View {
+        Group {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(el.displayLabel)
+                    .font(.system(.subheadline, design: .monospaced).weight(.bold))
+                Text("Selector: " + el.selector)
+                    .font(.system(.caption, design: .monospaced))
+                    .foregroundStyle(.secondary)
+                    .textSelection(.enabled)
+            }
+            if !el.text.isEmpty {
+                LabeledContent("Text", value: el.text)
+            }
+            if let parent = el.parentTag {
+                LabeledContent("Parent", value: parent)
+            }
+            LabeledContent("Children", value: "\(el.childCount)")
+            LabeledContent("Bounds", value: el.boundingBox)
+            if !el.attributes.isEmpty {
+                DisclosureGroup("Attributes (\(el.attributes.count))") {
+                    ForEach(Array(el.attributes.keys.sorted()), id: \.self) { key in
+                        Text("\(key) = \(el.attributes[key] ?? "")")
+                            .font(.system(.caption2, design: .monospaced))
+                            .textSelection(.enabled)
+                    }
+                }
+            }
+            HStack {
+                Button {
+                    UIPasteboard.general.string = el.selector
+                    pasted = true
+                } label: {
+                    Label(pasted ? "Copied!" : "Copy selector", systemImage: "doc.on.doc")
+                }
+                Spacer()
+                Button {
+                    askNavi(with: el)
+                } label: {
+                    Label("Ask Navi", systemImage: "sparkles")
+                }
+            }
+            .font(.caption.weight(.semibold))
+        }
+    }
+
+    private func toggleSelectMode() {
+        selecting = true
+        Task {
+            let started = await inspector.beginElementSelection()
+            if !started {
+                selecting = false
+            }
+            // Read the pick shortly after the user taps; poll a few times.
+            for _ in 0..<25 {
+                try? await Task.sleep(nanoseconds: 600_000_000)
+                if let picked = await inspector.readSelectedElement() {
+                    selecting = false
+                    return
+                }
+            }
+            selecting = false
+        }
+    }
+
+    private func askNavi(with el: ElementInspection) {
+        app.browser.showsDevTools = false
+        app.browser.agentMode = .debug
+        app.browser.showsChatPanel = true
+        app.browser.submitPrompt("Explain this element on the current page: \(el.displayLabel) (selector \(el.selector)). Text: \(el.text)")
     }
 }
 

@@ -197,4 +197,11 @@ CodeMagic also lets you choose the Xcode version in the web UI per build.
 - Minimum iOS: **16.0**.
 - Full browser: tabs, history, bookmarks, downloads, desktop mode, and an AI
   agent with a visible cursor that clicks and types for you.
+- **Debug mode**: switch the agent to *Debug* to diagnose broken pages with a
+  Problem → Evidence → Cause → Fix report (LLM when configured, offline
+  heuristic otherwise). DevTools gains a **Debug** tab and a **Select Element**
+  tap-inspector (tag, selector, attributes, text, bounding box).
+- **Smart welcome screen**: greeting, AI command bar with intent routing
+  (search, open site, deep research, image, DevTools, private tab…) and recent
+  tabs/chats/research to continue where you left off.
 - AI never bypasses CAPTCHAs — it pauses and asks you to solve them. 
