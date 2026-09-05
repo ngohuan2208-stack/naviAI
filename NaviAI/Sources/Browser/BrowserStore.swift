@@ -229,6 +229,17 @@ final class BrowserStore: ObservableObject {
     @Published var activePrompt: UserPrompt?
     @Published var cursor = CursorState()
     @Published var showsChatPanel = false
+    @Published var showsWelcome = false
+    @Published var showsDevTools = false
+    @Published var showsNetworkCenter = false
+    @Published var showsImageStudio = false
+    @Published var showsResearch = false
+    @Published var showsHistoryCenter = false
+    @Published var showsDownloads = false
+    @Published var showsBookmarks = false
+    @Published var showsSettings = false
+    @Published var showsAutomation = false
+    @Published var showsFindBar = false
     @Published var agentMode: AgentMode = .interact
     // Auto-mode progress surfaced to the UI.
     @Published var taskGoal: String = ""

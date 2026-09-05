@@ -75,6 +75,19 @@ struct SettingsView: View {
                 ))
             }
 
+            Section("Network & Developer") {
+                NavigationLink {
+                    NetworkCenterView()
+                } label: {
+                    Label("Network & Proxy", systemImage: "antenna.radiowaves.left.and.right")
+                }
+                Button {
+                    app.browser.showsDevTools = true
+                } label: {
+                    Label("DevTools (this page)", systemImage: "wrench.and.screwdriver")
+                }
+            }
+
             Section {
                 Button { clearAction = .history } label: { Label("Clear history", systemImage: "clock.arrow.circlepath") }
                 Button { clearAction = .bookmarks } label: { Label("Clear bookmarks", systemImage: "book") }

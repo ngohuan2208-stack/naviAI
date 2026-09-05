@@ -11,7 +11,18 @@ struct BrowserHomeView: View {
     @EnvironmentObject var app: AppModel
 
     var body: some View {
-        BrowserContentView(store: app.browser)
+        ZStack {
+            BrowserContentView(store: app.browser)
+                .opacity(app.browser.showsWelcome ? 0 : 1)
+                .allowsHitTesting(!app.browser.showsWelcome)
+
+            if app.browser.showsWelcome {
+                WelcomeLaunchView()
+                    .transition(.opacity)
+                    .zIndex(10)
+            }
+        }
+        .animation(.easeInOut(duration: 0.18), value: app.browser.showsWelcome)
     }
 }
 
@@ -54,6 +65,30 @@ private struct BrowserContentView: View {
             AIChatPanelSheet(store: store)
                 .presentationDetents([.medium, .large])
                 .presentationDragIndicator(.visible)
+        }
+        .sheet(isPresented: $store.showsDevTools) {
+            DevToolsPanelView()
+                .presentationDetents([.medium, .large])
+                .presentationDragIndicator(.visible)
+        }
+        .sheet(isPresented: $store.showsResearch) {
+            NavigationStack { ResearchView() }
+                .presentationDetents([.large])
+        }
+        .sheet(isPresented: $store.showsImageStudio) {
+            NavigationStack { ImageStudioView() }
+                .presentationDetents([.large])
+        }
+        .sheet(isPresented: $store.showsAutomation) {
+            NavigationStack { AutomationRootView() }
+                .presentationDetents([.large])
+        }
+        .sheet(isPresented: $store.showsNetworkCenter) {
+            NavigationStack { NetworkCenterView() }
+                .presentationDetents([.medium, .large])
+        }
+        .sheet(isPresented: $store.showsSettings) {
+            NavigationStack { SettingsView() }
         }
     }
 

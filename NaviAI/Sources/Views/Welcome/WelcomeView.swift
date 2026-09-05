@@ -1,0 +1,408 @@
+import SwiftUI
+
+// MARK: - Welcome screen
+
+/// Launch surface: big command box (AI intent routing), Continue row,
+/// quick actions, and smart recents across tabs/history/chats/research.
+struct WelcomeLaunchView: View {
+    @EnvironmentObject var app: AppModel
+
+    @State private var command = ""
+    @FocusState private var commandFocused: Bool
+
+    var body: some View {
+        NavigationStack {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 22) {
+                    header
+                    commandBox
+                    continueRow
+                    quickActions
+                    SmartRecentsSection(app: app)
+                }
+                .padding()
+            }
+            .background(Color(.systemGroupedBackground))
+            .navigationTitle("")
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    NavigationLink {
+                        SettingsView()
+                    } label: {
+                        Image(systemName: "gearshape")
+                    }
+                }
+            }
+            .onAppear(perform: markVisited)
+        }
+    }
+
+    private func markVisited() {
+        app.settings.onboarded = true
+    }
+
+    // MARK: Sections
+
+    private var header: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(greeting)
+                .font(.title2.bold())
+            Text("Ask anything, or pick up where you left off.")
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+        }
+        .padding(.top, 8)
+    }
+
+    private var greeting: String {
+        let h = Calendar.current.component(.hour, from: Date())
+        switch h {
+        case 5..<12: return "Good morning"
+        case 12..<18: return "Good afternoon"
+        default: return "Good evening"
+        }
+    }
+
+    private var commandBox: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            TextEditor(text: $command)
+                .focused($commandFocused)
+                .frame(minHeight: 64, maxHeight: 110)
+                .scrollContentBackground(.hidden)
+            HStack {
+                Text("Search, open a site, ask AI…")
+                    .font(.caption)
+                    .foregroundStyle(.tertiary)
+                Spacer()
+                Button {
+                    submitCommand()
+                } label: {
+                    Image(systemName: "arrow.up.circle.fill")
+                        .font(.title3)
+                }
+                .disabled(command.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+            }
+        }
+        .padding(12)
+        .background(Color(.secondarySystemGroupedBackground))
+        .clipShape(RoundedRectangle(cornerRadius: 16))
+    }
+
+    private var continueRow: some View {
+        Group {
+            if let item = continueItem {
+                Button {
+                    item.run(app)
+                } label: {
+                    HStack(spacing: 12) {
+                        Image(systemName: item.symbol)
+                            .font(.title3)
+                            .frame(width: 38, height: 38)
+                            .background(Color.accentColor.opacity(0.14))
+                            .clipShape(RoundedRectangle(cornerRadius: 9))
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("CONTINUE")
+                                .font(.caption2.weight(.bold))
+                                .foregroundStyle(.secondary)
+                            Text(item.title)
+                                .font(.subheadline.weight(.semibold))
+                                .foregroundStyle(.primary)
+                                .lineLimit(1)
+                        }
+                        Spacer()
+                        Image(systemName: "chevron.right")
+                            .font(.caption)
+                            .foregroundStyle(.tertiary)
+                    }
+                    .padding(12)
+                    .background(Color(.secondarySystemGroupedBackground))
+                    .clipShape(RoundedRectangle(cornerRadius: 14))
+                }
+                .buttonStyle(.plain)
+            }
+        }
+    }
+
+    private var quickActions: some View {
+        LazyVGrid(columns: [GridItem(.adaptive(minimum: 84), spacing: 10)], spacing: 10) {
+            QuickAction(symbol: "plus.square.on.square", label: "New Tab") {
+                enterBrowser { app.browser.newTab(url: nil, activate: true) }
+            }
+            QuickAction(symbol: "eye.slash", label: "Private") {
+                enterBrowser { app.browser.openPrivateTab() }
+            }
+            QuickAction(symbol: "clock.arrow.circlepath", label: "History") {
+                app.browser.showsHistoryCenter = true
+            }
+            QuickAction(symbol: "square.grid.2x2", label: "Command Bar") {
+                app.browser.showsCommandBar = true
+            }
+            QuickAction(symbol: "doc.text.magnifyingglass", label: "Research") {
+                app.browser.showsResearch = true
+            }
+            QuickAction(symbol: "antenna.radiowaves.left.and.right", label: "Network") {
+                app.browser.showsNetworkCenter = true
+            }
+        }
+    }
+
+    // MARK: Actions
+
+    private func enterBrowser(_ configure: @escaping () -> Void) {
+        app.browser.showsWelcome = false
+        configure()
+    }
+
+    private func submitCommand() {
+        let text = command.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !text.isEmpty else { return }
+        command = ""
+        commandFocused = false
+        if let intent = AppIntentRouter.detect(text: text) {
+            intent.perform(app: app)
+        } else {
+            // No clear intent → treat as an AI chat request.
+            app.browser.showsWelcome = false
+            app.browser.showsChatPanel = true
+            app.browser.submitPrompt(text)
+        }
+    }
+
+// MARK: - Continue suggestion
+
+extension WelcomeLaunchView {
+
+    /// The single most relevant "continue where you left off" item.
+    private var continueItem: SmartRecent? {
+        SmartRecentsBuilder.build(app: app).first
+    }
+}
+
+// MARK: - Smart recent model
+
+struct SmartRecent: Identifiable {
+    enum Kind {
+        case tab, history, chat, report, automation
+    }
+
+    let id: String
+    let kind: Kind
+    let title: String
+    let subtitle: String
+    let date: Date?
+    let action: @MainActor (AppModel) -> Void
+
+    var symbol: String {
+        switch kind {
+        case .tab: return "macwindow"
+        case .history: return "clock.arrow.circlepath"
+        case .chat: return "bubble.left.and.text.bubble.right"
+        case .report: return "doc.text.magnifyingglass"
+        case .automation: return "workflow"
+        }
+    }
+
+    var kindLabel: String {
+        switch kind {
+        case .tab: return "Open tab"
+        case .history: return "History"
+        case .chat: return "Chat"
+        case .report: return "Research"
+        case .automation: return "Automation"
+        }
+    }
+
+
+// MARK: - Smart recents builder
+
+enum SmartRecentsBuilder {
+
+    /// Merges the newest items from every store, interleaved by kind so the
+    /// list is diverse: tabs → chats → reports → history → automation.
+    static func build(app: AppModel, limit: Int = 8) -> [SmartRecent] {
+        var items: [SmartRecent] = []
+        let browser = app.browser
+
+        // Open tabs (skip blank ones)
+        for tab in browser.tabs.prefix(3) where tab.url != nil {
+            let tabID = tab.id
+            let title = tab.title.isEmpty ? (tab.url?.host ?? "Tab") : tab.title
+            let subtitle = tab.url?.absoluteString ?? ""
+            let date = tab.lastOpened
+            items.append(SmartRecent(
+                id: "tab-\(tabID)",
+                kind: .tab,
+                title: title,
+                subtitle: subtitle,
+                date: date,
+                action: { store in
+                    store.browser.selectTab(tabID)
+                    store.browser.showsWelcome = false
+                }))
+        }
+
+        // Recent conversations
+        for convo in ConversationStore.shared.conversations.prefix(2) {
+            let convoID = convo.id
+            let title = convo.title
+            let date = convo.updatedAt
+            items.append(SmartRecent(
+                id: "chat-\(convoID)",
+                kind: .chat,
+                title: title,
+                subtitle: "Chat",
+                date: date,
+                action: { store in
+                    ConversationStore.shared.activeConversationID = convoID
+                    store.browser.showsWelcome = false
+                    store.browser.showsChatPanel = true
+                }))
+        }
+
+        // Research reports
+        for report in DeepResearchEngine.shared.reports.prefix(2) {
+            let question = report.question
+            let date = report.createdAt
+            items.append(SmartRecent(
+                id: "report-\(report.id)",
+                kind: .report,
+                title: question,
+                subtitle: "Research report",
+                date: date,
+                action: { store in
+                    store.browser.showsWelcome = false
+                    store.browser.showsResearch = true
+                }))
+        }
+
+        // History
+        for entry in HistoryStore.shared.entries.prefix(2) {
+            let urlText = entry.url
+            let title = entry.title.isEmpty ? (URL(string: urlText)?.host ?? "Page") : entry.title
+            let date = entry.visitedAt
+            items.append(SmartRecent(
+                id: "hist-\(urlText)",
+                kind: .history,
+                title: title,
+                subtitle: URL(string: urlText)?.host ?? urlText,
+                date: date,
+                action: { store in
+                    store.browser.loadAddress(urlText)
+                    store.browser.showsWelcome = false
+                }))
+        }
+
+        // Recently finished automation runs
+        for run in app.automation.history.prefix(1) {
+            let name = run.taskName
+            let status = run.status.label
+            let date = run.startTime
+            items.append(SmartRecent(
+                id: "auto-\(run.id)",
+                kind: .automation,
+                title: name,
+                subtitle: status,
+                date: date,
+
+// MARK: - Smart recents section view
+
+struct SmartRecentsSection: View {
+    @ObservedObject var app: AppModel
+
+    var body: some View {
+        let items = SmartRecentsBuilder.build(app: app)
+        Group {
+            if items.isEmpty {
+                VStack(alignment: .leading, spacing: 8) {
+                    sectionTitle("Start exploring")
+                    Text("Open a tab or ask the AI anything — your recent tabs, chats, reports and history will show up here.")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                }
+            } else {
+                VStack(alignment: .leading, spacing: 8) {
+                    sectionTitle("Recent")
+                    ForEach(items) { item in
+                        Button {
+                            item.run(app: app)
+                        } label: {
+                            HStack(spacing: 10) {
+                                Image(systemName: item.symbol)
+                                    .frame(width: 26)
+                                    .foregroundStyle(.tint)
+                                VStack(alignment: .leading, spacing: 1) {
+                                    Text(item.title)
+                                        .font(.subheadline)
+                                        .foregroundStyle(.primary)
+                                        .lineLimit(1)
+                                    Text(item.kindLabel)
+                                        .font(.caption2)
+                                        .foregroundStyle(.secondary)
+                                }
+                                Spacer()
+                                if let date = item.date {
+                                    Text(date, style: .relative)
+                                        .font(.caption2)
+                                        .foregroundStyle(.tertiary)
+                                }
+                            }
+                            .padding(.vertical, 2)
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+            }
+        }
+    }
+
+    private func sectionTitle(_ text: String) -> some View {
+        Text(text.uppercased())
+            .font(.caption.weight(.semibold))
+            .foregroundStyle(.secondary)
+    }
+}
+
+// MARK: - Quick action tile
+
+struct QuickAction: View {
+    let symbol: String
+    let label: String
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            VStack(spacing: 6) {
+                Image(systemName: symbol)
+                    .font(.title3)
+                    .frame(width: 44, height: 44)
+                    .background(Color.accentColor.opacity(0.12))
+                    .clipShape(RoundedRectangle(cornerRadius: 12))
+                Text(label)
+                    .font(.caption2)
+                    .foregroundStyle(.primary)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
+            }
+            .frame(maxWidth: .infinity)
+        }
+        .buttonStyle(.plain)
+    }
+}
+                action: { store in
+                    store.browser.showsWelcome = false
+                    store.browser.showsAutomation = true
+                }))
+        }
+
+        return items
+            .sorted { ($0.date ?? .distantPast) > ($1.date ?? .distantPast) }
+            .prefix(limit)
+            .map { $0 }
+    }
+}
+    func run(app: AppModel) {
+        app.browser.showsWelcome = false
+        action(app)
+    }
+}
+}
