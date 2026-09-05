@@ -1,4 +1,5 @@
 import SwiftUI
+import WebKit
 
 struct HistorySheet: View {
     @ObservedObject var store: BrowserStore
@@ -154,5 +155,109 @@ private struct ContentUnavailable: View {
                 .padding(.horizontal, 30)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+}
+
+// MARK: - Site data (cookies / storage = signed-in accounts)
+
+struct SiteDataSheet: View {
+    @ObservedObject var store: BrowserStore
+
+    @State private var records: [WKWebsiteDataRecord] = []
+    @State private var isLoading = true
+    @State private var errorMessage: String?
+    @State private var clearingAll = false
+
+    var body: some View {
+        Group {
+            if let errorMessage {
+                ContentUnavailable("Couldn't load site data",
+                                   systemImage: "exclamationmark.triangle",
+                                   message: errorMessage)
+            } else if isLoading {
+                ProgressView("Loading site data…")
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else if records.isEmpty {
+                ContentUnavailable("No stored data",
+                                   systemImage: "shield.checkered",
+                                   message: "Sites you visit store cookies and storage here, which keeps you signed in. This list will fill as you browse.")
+            } else {
+                List {
+                    ForEach(records, id: \.self) { record in
+                        HStack(spacing: 12) {
+                            Image(systemName: "globe")
+                                .foregroundStyle(Color.accentColor)
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(record.displayName)
+                                    .font(.body)
+                                Text(typeSummary(for: record))
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                            Spacer()
+                            Button(role: .destructive) {
+                                remove(record)
+                            } label: {
+                                Image(systemName: "trash")
+                            }
+                            .buttonStyle(.borderless)
+                        }
+                    }
+                }
+            }
+        }
+        .navigationTitle("Site Data")
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                if !records.isEmpty {
+                    Button("Clear All", role: .destructive) {
+                        clearingAll = true
+                    }
+                    .confirmationDialog("This signs you out of every site and removes their local storage.", isPresented: $clearingAll, titleVisibility: .visible) {
+                        Button("Clear all site data", role: .destructive) { clearAll() }
+                        Button("Cancel", role: .cancel) {}
+                    }
+                }
+            }
+        }
+        .task {
+            await reload()
+        }
+    }
+
+    private func reload() async {
+        isLoading = true
+        errorMessage = nil
+        let result = await store.fetchSiteData()
+        records = result.sorted { $0.displayName.localizedCaseInsensitiveCompare($1.displayName) == .orderedAscending }
+        isLoading = false
+    }
+
+    private func remove(_ record: WKWebsiteDataRecord) {
+        store.removeSiteData(record: record)
+        records.removeAll { $0 == record }
+    }
+
+    private func clearAll() {
+        let count = records.count
+        store.removeAllSiteData()
+        records.removeAll()
+        if count > 0 {
+            // Sign-out feedback.
+            store.appendInfo("Cleared site data for \(count) site\(count == 1 ? "" : "s").")
+        }
+    }
+
+    private func typeSummary(for record: WKWebsiteDataRecord) -> String {
+        // Human summary of which data a site has stored.
+        var parts: [String] = []
+        if record.dataTypes.contains(WKWebsiteDataTypeCookies) { parts.append("Cookies") }
+        if record.dataTypes.contains(WKWebsiteDataTypeLocalStorage) { parts.append("Local storage") }
+        if record.dataTypes.contains(WKWebsiteDataTypeSessionStorage) { parts.append("Session") }
+        if record.dataTypes.contains(WKWebsiteDataTypeIndexedDBDatabases) { parts.append("IndexedDB") }
+        if record.dataTypes.contains(WKWebsiteDataTypeWebSQLDatabases) { parts.append("WebSQL") }
+        if record.dataTypes.contains(WKWebsiteDataTypeServiceWorkerRegistrations) { parts.append("Service worker") }
+        return parts.isEmpty ? "Cached data" : parts.joined(separator: " · ")
     }
 }

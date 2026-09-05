@@ -109,6 +109,15 @@ struct CursorState: Equatable {
     var isPressing: Bool = false
 }
 
+// MARK: - Persisted session snapshot
+
+/// A single restored tab: its URL plus a human-friendly title so re-opening a
+/// session does not lose the tab labels.
+struct StoredTabSession: Codable {
+    var url: URL?
+    var title: String
+}
+
 // MARK: - Browser store
 
 @MainActor
@@ -448,11 +457,27 @@ final class BrowserStore: ObservableObject {
 
     // MARK: - Web data clearing
 
+    private static let siteDataTypes: Set<String> = [
+        WKWebsiteDataTypeCookies,
+        WKWebsiteDataTypeLocalStorage,
+        WKWebsiteDataTypeSessionStorage,
+        WKWebsiteDataTypeIndexedDBDatabases,
+        WKWebsiteDataTypeWebSQLDatabases,
+        WKWebsiteDataTypeServiceWorkerRegistrations,
+    ]
+
+    /// Low-level clearing used by both the simple "clear all" action and the
+    /// per-site data manager.
+    private func removeData(ofTypes types: Set<String>, for records: [WKWebsiteDataRecord], completion: (() -> Void)? = nil) {
+        WKWebsiteDataStore.default().removeData(ofTypes: types, for: records) {
+            completion?()
+        }
+    }
+
     func clearCookies(completion: (() -> Void)? = nil) {
         let dataStore = WKWebsiteDataStore.default()
-        let types: Set<String> = [WKWebsiteDataTypeCookies, WKWebsiteDataTypeLocalStorage, WKWebsiteDataTypeSessionStorage, WKWebsiteDataTypeIndexedDBDatabases, WKWebsiteDataTypeWebSQLDatabases]
-        dataStore.fetchDataRecords(ofTypes: types) { records in
-            dataStore.removeData(ofTypes: types, for: records) {
+        dataStore.fetchDataRecords(ofTypes: Self.siteDataTypes) { records in
+            dataStore.removeData(ofTypes: Self.siteDataTypes, for: records) {
                 completion?()
             }
         }
@@ -462,6 +487,31 @@ final class BrowserStore: ObservableObject {
         let types: Set<String> = [WKWebsiteDataTypeDiskCache, WKWebsiteDataTypeMemoryCache, WKWebsiteDataTypeOfflineWebApplicationCache]
         WKWebsiteDataStore.default().removeData(ofTypes: types, modifiedSince: .distantPast) {
             completion?()
+        }
+    }
+
+    // MARK: - Site data (cookies / local storage = signed-in accounts)
+
+    /// Fetches the on-device per-website data records. Records represent the
+    /// sites that have cookies / storage, which is what keeps you logged in.
+    func fetchSiteData() async -> [WKWebsiteDataRecord] {
+        await withCheckedContinuation { continuation in
+            WKWebsiteDataStore.default().fetchDataRecords(ofTypes: Self.siteDataTypes) { records in
+                continuation.resume(returning: records)
+            }
+        }
+    }
+
+    func removeSiteData(record: WKWebsiteDataRecord, completion: (() -> Void)? = nil) {
+        removeData(ofTypes: Self.siteDataTypes, for: [record], completion: completion)
+    }
+
+    func removeAllSiteData(completion: (() -> Void)? = nil) {
+        let dataStore = WKWebsiteDataStore.default()
+        dataStore.fetchDataRecords(ofTypes: Self.siteDataTypes) { records in
+            dataStore.removeData(ofTypes: Self.siteDataTypes, for: records) {
+                completion?()
+            }
         }
     }
 
@@ -497,21 +547,38 @@ final class BrowserStore: ObservableObject {
 
     private func restoreTabs() {
         let d = UserDefaults.standard
-        let saved = d.stringArray(forKey: Keys.sessionTabs) ?? []
-        let urls = saved.compactMap { URL(string: $0) }.prefix(8)
-        if urls.isEmpty {
-            _ = newTab(url: nil, activate: true)
+        if let data = d.data(forKey: Keys.sessionTabs),
+           let saved = try? JSONDecoder().decode([StoredTabSession].self, from: data) {
+            if saved.isEmpty {
+                _ = newTab(url: nil, activate: true)
+            } else {
+                for (i, item) in saved.prefix(8).enumerated() {
+                    let tab = newTab(url: item.url, activate: i == 0)
+                    tab.title = item.title
+                }
+            }
         } else {
-            for (i, url) in urls.enumerated() {
-                let tab = newTab(url: url, activate: i == 0)
-                tab.title = url.host ?? ""
+            // Legacy format: plain array of URL strings.
+            let saved = d.stringArray(forKey: Keys.sessionTabs) ?? []
+            let urls = saved.compactMap { URL(string: $0) }.prefix(8)
+            if urls.isEmpty {
+                _ = newTab(url: nil, activate: true)
+            } else {
+                for (i, url) in urls.enumerated() {
+                    let tab = newTab(url: url, activate: i == 0)
+                    tab.title = url.host ?? ""
+                }
             }
         }
     }
 
     private func persistSessionTabs() {
-        let urls = tabs.compactMap { $0.webView.url?.absoluteString }
-        UserDefaults.standard.set(Array(urls.prefix(8)), forKey: Keys.sessionTabs)
+        let items = tabs.prefix(8).map { tab in
+            StoredTabSession(url: tab.webView.url ?? tab.url, title: tab.title.isEmpty ? (tab.webView.url?.host ?? "New Tab") : tab.title)
+        }
+        if let data = try? JSONEncoder().encode(items) {
+            UserDefaults.standard.set(data, forKey: Keys.sessionTabs)
+        }
     }
 
     // MARK: - Info helpers

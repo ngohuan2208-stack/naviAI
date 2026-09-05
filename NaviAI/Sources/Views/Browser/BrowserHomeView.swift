@@ -3,7 +3,7 @@ import UIKit
 import WebKit
 
 enum SheetContent: String, Identifiable {
-    case history, bookmarks, downloads, settings
+    case history, bookmarks, downloads, siteData, settings
     var id: String { rawValue }
 }
 
@@ -50,8 +50,10 @@ private struct BrowserContentView: View {
         .sheet(item: $activeSheet) { content in
             sheetView(for: content)
         }
-        .fullScreenCover(isPresented: $store.showsChatPanel) {
+        .sheet(isPresented: $store.showsChatPanel) {
             AIChatPanelSheet(store: store)
+                .presentationDetents([.medium, .large])
+                .presentationDragIndicator(.visible)
         }
     }
 
@@ -62,6 +64,7 @@ private struct BrowserContentView: View {
             case .history: HistorySheet(store: store)
             case .bookmarks: BookmarksSheet(store: store)
             case .downloads: DownloadsSheet(store: store)
+            case .siteData: SiteDataSheet(store: store)
             case .settings: SettingsView()
             }
         }
@@ -143,6 +146,11 @@ private struct BrowserContentView: View {
                     activeSheet = .downloads
                 } label: {
                     Label("Downloads", systemImage: "arrow.down.circle")
+                }
+                Button {
+                    activeSheet = .siteData
+                } label: {
+                    Label("Site Data (Accounts)", systemImage: "externaldrive.badge.person.crop")
                 }
                 Divider()
                 Toggle(isOn: Binding(
