@@ -104,6 +104,9 @@ struct CursorState: Equatable {
     var position: CGPoint = .zero
     var label: String?
     var pulseID: Int = 0
+    /// Set momentarily while the AI "presses" the button so the mascot can
+    /// squash to look like a physical click.
+    var isPressing: Bool = false
 }
 
 // MARK: - Browser store
@@ -179,6 +182,7 @@ final class BrowserStore: ObservableObject {
 
     var activeCoordinator: WebCoordinator? { activeTab?.coordinator }
 
+    @discardableResult
     func newTab(url: URL?, activate: Bool = true) -> TabItem {
         let tab = TabItem(desktopMode: settings.desktopModeEnabled)
         tabs.append(tab)
@@ -532,12 +536,14 @@ final class BrowserStore: ObservableObject {
 
     func hideCursor() {
         cursor.visible = false
+        cursor.isPressing = false
         cursor.pulseID += 1
     }
 
     func pulseAt(_ point: CGPoint) {
         cursor.position = point
         cursor.visible = true
+        cursor.isPressing = true
         cursor.pulseID += 1
     }
 

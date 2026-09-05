@@ -136,7 +136,7 @@ final class LLMService {
                     "image_url": ["url": "data:\(mime);base64,\(b64)"]
                 ]
                 let textPart: [String: Any] = ["type": "text", "text": text]
-                var msg: [String: Any] = ["role": "user", "content": [textPart, content]]
+                let msg: [String: Any] = ["role": "user", "content": [textPart, content]]
                 messages.append(msg)
             case .assistantText(let t):
                 flushToolCalls()

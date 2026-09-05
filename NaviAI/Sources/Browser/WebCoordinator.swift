@@ -65,6 +65,7 @@ final class WebCoordinator: NSObject {
         Task { @MainActor in action(browser) }
     }
 
+    @MainActor
     func evaluate(_ js: String) async throws -> Any? {
         try await withCheckedThrowingContinuation { continuation in
             self.webView.evaluateJavaScript(js) { result, error in

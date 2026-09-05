@@ -524,7 +524,11 @@ extension BrowserStore {
         guard settings.aiCursorEnabled else { return }
         cursor.visible = true
         cursor.position = point
+        // Press down, then release -> physical click feel for the mascot.
+        cursor.isPressing = true
         cursor.pulseID += 1
-        try? await Task.sleep(nanoseconds: 280_000_000)
+        try? await Task.sleep(nanoseconds: 120_000_000)
+        cursor.isPressing = false
+        try? await Task.sleep(nanoseconds: 160_000_000)
     }
 }

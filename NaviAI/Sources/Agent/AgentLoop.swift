@@ -159,7 +159,7 @@ extension BrowserStore {
 
             // Build the system + conversation for this step.
             let sys = agentSystemPrompt(pageContext: activePageLine() + "\n" + tabListLine())
-            var history: [OutboundItem] = [.system(sys)] + apiHistory
+            let history: [OutboundItem] = [.system(sys)] + apiHistory
 
             do {
                 let reply = try await llm.complete(
@@ -177,7 +177,7 @@ extension BrowserStore {
                 // If the model produced text together with tool calls, remember
                 // it but continue executing the calls.
                 if !reply.toolCalls.isEmpty {
-                    for (i, call) in reply.toolCalls.enumerated() {
+                    for call in reply.toolCalls {
                         if Task.isCancelled { agentStatus = .stopped; return }
 
                         let actionNote = describeAction(call)
@@ -201,6 +201,8 @@ extension BrowserStore {
                 if let text = reply.text, !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                     turns.append(ChatTurn(role: .assistant, kind: .text, text: text.trimmingCharacters(in: .whitespacesAndNewlines)))
                     apiHistory.append(.assistantText(text.trimmingCharacters(in: .whitespacesAndNewlines)))
+                    cursor.visible = false
+                    cursor.isPressing = false
                     cursor.label = nil
                     agentStatus = .done
                     return
@@ -224,6 +226,8 @@ extension BrowserStore {
 
     private func finishWith(info: String) {
         turns.append(ChatTurn(role: .assistant, kind: .info, text: info))
+        cursor.visible = false
+        cursor.isPressing = false
         cursor.label = nil
         agentStatus = .done
         isAgentRunning = false
