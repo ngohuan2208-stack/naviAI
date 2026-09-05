@@ -4,12 +4,12 @@ import UIKit
 struct OnboardingRootView: View {
     var body: some View {
         NavigationStack {
-            WelcomeView()
+            OnboardingWelcomeView()
         }
     }
 }
 
-struct WelcomeView: View {
+struct OnboardingWelcomeView: View {
     @State private var logoScale: CGFloat = 0.6
     @State private var logoOpacity: Double = 0
     @State private var textOpacity: Double = 0
