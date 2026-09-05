@@ -14,15 +14,19 @@ struct BrowserHomeView: View {
         ZStack {
             BrowserContentView(store: app.browser)
                 .opacity(app.browser.showsWelcome ? 0 : 1)
+                .scaleEffect(app.browser.showsWelcome ? 0.98 : 1)
                 .allowsHitTesting(!app.browser.showsWelcome)
 
             if app.browser.showsWelcome {
                 WelcomeLaunchView()
-                    .transition(.opacity)
+                    .transition(.asymmetric(
+                        insertion: .opacity.combined(with: .scale(scale: 1.02)),
+                        removal: .opacity.combined(with: .scale(scale: 0.98))
+                    ))
                     .zIndex(10)
             }
         }
-        .animation(.easeInOut(duration: 0.18), value: app.browser.showsWelcome)
+        .animation(.spring(response: 0.4, dampingFraction: 0.86), value: app.browser.showsWelcome)
     }
 }
 
@@ -320,6 +324,7 @@ private struct BrowserContentView: View {
         HStack(spacing: 8) {
             if store.agentStatus != .idle {
                 Image(systemName: store.agentStatus.symbol)
+                    .pulsingWhileActive(store.isAgentRunning)
                 Text(store.agentStatus.label)
                     .font(.subheadline.weight(.semibold))
             }
@@ -334,13 +339,19 @@ private struct BrowserContentView: View {
                         .background(.red, in: Capsule())
                         .foregroundStyle(.white)
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(BouncyButtonStyle())
             }
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 8)
         .background(.ultraThinMaterial, in: Capsule())
+        .overlay {
+            Capsule()
+                .stroke(Color.accentColor.opacity(store.isAgentRunning ? 0.5 : 0), lineWidth: 1.5)
+        }
         .shadow(color: .black.opacity(0.15), radius: 6, y: 2)
+        .transition(.scale(scale: 0.85).combined(with: .opacity))
+        .animation(.spring(response: 0.35, dampingFraction: 0.7), value: store.isAgentRunning)
     }
 }
 
@@ -410,6 +421,8 @@ struct PromptCard: View {
         .shadow(color: .black.opacity(0.18), radius: 16, y: 8)
         .frame(maxWidth: .infinity)
         .padding(.top, 40)
+        .transition(.scale(scale: 0.92).combined(with: .opacity))
+        .animation(.spring(response: 0.4, dampingFraction: 0.78), value: prompt.id)
     }
 }
 
@@ -435,6 +448,7 @@ struct AIChatBarView: View {
                 Image(systemName: store.isAgentRunning ? "waveform" : "cursorarrow.motionlines")
                     .font(.system(size: 12))
                     .foregroundStyle(store.isAgentRunning ? Color.accentColor : .secondary)
+                    .pulsingWhileActive(store.isAgentRunning)
                 TextField("Ask NaviAI…", text: $store.chatInput, axis: .vertical)
                     .font(.subheadline)
                     .lineLimit(1...4)
@@ -450,13 +464,18 @@ struct AIChatBarView: View {
                             .font(.system(size: 20))
                             .foregroundStyle(.red)
                     }
-                    .buttonStyle(.plain)
+                    .buttonStyle(BouncyButtonStyle())
+                    .transition(.scale.combined(with: .opacity))
                 }
             }
             .padding(.leading, 10)
             .padding(.trailing, 6)
             .padding(.vertical, 6)
             .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+            .overlay {
+                RoundedRectangle(cornerRadius: 20, style: .continuous)
+                    .stroke(Color.accentColor.opacity(store.isAgentRunning ? 0.4 : 0), lineWidth: 1.5)
+            }
             .overlay(alignment: .leading) {
                 if app.providers.activeProvider == nil {
                     Text("Set up an AI provider in Settings first")
@@ -466,6 +485,7 @@ struct AIChatBarView: View {
                         .allowsHitTesting(false)
                 }
             }
+            .animation(.easeOut(duration: 0.2), value: store.isAgentRunning)
 
             Button {
                 submit()
@@ -476,7 +496,7 @@ struct AIChatBarView: View {
                     .background(canSend ? Color.accentColor : Color(.secondarySystemBackground), in: Circle())
                     .foregroundStyle(canSend ? .white : Color.secondary)
             }
-            .buttonStyle(.plain)
+            .buttonStyle(BouncyButtonStyle())
             .disabled(!canSend)
         }
         .padding(.horizontal, 10)
@@ -547,6 +567,8 @@ private struct TabChipView: View {
         .padding(.vertical, 5)
         .background(isActive ? Color.accentColor : Color(.secondarySystemGroupedBackground), in: Capsule())
         .foregroundStyle(isActive ? Color.white : Color.primary)
+        .scaleEffect(isActive ? 1.04 : 1)
+        .animation(.spring(response: 0.3, dampingFraction: 0.7), value: isActive)
         .contentShape(Capsule())
         .onTapGesture(perform: onSelect)
     }

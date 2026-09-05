@@ -9,20 +9,32 @@ struct WelcomeLaunchView: View {
 
     @State private var command = ""
     @FocusState private var commandFocused: Bool
+    @State private var appeared = false
 
     var body: some View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 22) {
                     header
+                        .settleIn(appeared, delay: 0.00)
                     commandBox
+                        .settleIn(appeared, delay: 0.05)
                     continueRow
+                        .settleIn(appeared, delay: 0.10)
                     quickActions
+                        .settleIn(appeared, delay: 0.15)
                     SmartRecentsSection(app: app)
+                        .settleIn(appeared, delay: 0.20)
                 }
                 .padding()
             }
-            .background(Color(.systemGroupedBackground))
+            .background {
+                ZStack {
+                    Color(.systemGroupedBackground)
+                    AmbientSceneView(intensity: .full)
+                }
+                .ignoresSafeArea()
+            }
             .navigationTitle("")
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
@@ -33,7 +45,12 @@ struct WelcomeLaunchView: View {
                     }
                 }
             }
-            .onAppear(perform: markVisited)
+            .onAppear {
+                markVisited()
+                withAnimation(.spring(response: 0.55, dampingFraction: 0.82)) {
+                    appeared = true
+                }
+            }
         }
     }
 
@@ -44,14 +61,17 @@ struct WelcomeLaunchView: View {
     // MARK: Sections
 
     private var header: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Text("Navi AI")
-                .font(.system(size: 34, weight: .heavy, design: .rounded))
-            Text("Xin chào 👋")
-                .font(.title3.weight(.semibold))
-            Text("Bạn muốn làm gì hôm nay?")
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
+        HStack(alignment: .top, spacing: 12) {
+            VStack(alignment: .leading, spacing: 6) {
+                Text("Navi AI")
+                    .font(.system(size: 34, weight: .heavy, design: .rounded))
+                Text("Xin chào 👋")
+                    .font(.title3.weight(.semibold))
+                RotatingGreetingView()
+            }
+            Spacer()
+            MascotLogoView(size: 44)
+                .breathing()
         }
         .padding(.top, 8)
     }
@@ -86,13 +106,19 @@ struct WelcomeLaunchView: View {
         .padding(12)
         .background(Color(.secondarySystemGroupedBackground))
         .clipShape(RoundedRectangle(cornerRadius: 16))
+        .overlay {
+            RoundedRectangle(cornerRadius: 16)
+                .stroke(Color.accentColor.opacity(commandFocused ? 0.55 : 0), lineWidth: 1.5)
+        }
+        .shadow(color: Color.accentColor.opacity(commandFocused ? 0.22 : 0), radius: 14, y: 4)
+        .animation(.easeOut(duration: 0.22), value: commandFocused)
     }
 
     private var continueRow: some View {
         Group {
             if let item = continueItem {
                 Button {
-                    item.run(app)
+                    item.run(app: app)
                 } label: {
                     HStack(spacing: 12) {
                         Image(systemName: item.symbol)
@@ -118,7 +144,7 @@ struct WelcomeLaunchView: View {
                     .background(Color(.secondarySystemGroupedBackground))
                     .clipShape(RoundedRectangle(cornerRadius: 14))
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(BouncyButtonStyle())
             }
         }
     }
@@ -173,6 +199,7 @@ struct WelcomeLaunchView: View {
             app.browser.submitPrompt(text)
         }
     }
+}
 
 // MARK: - Continue suggestion
 
@@ -218,6 +245,11 @@ struct SmartRecent: Identifiable {
         }
     }
 
+    func run(app: AppModel) {
+        app.browser.showsWelcome = false
+        action(app)
+    }
+}
 
 // MARK: - Smart recents builder
 
@@ -309,6 +341,18 @@ enum SmartRecentsBuilder {
                 title: name,
                 subtitle: status,
                 date: date,
+                action: { store in
+                    store.browser.showsWelcome = false
+                    store.browser.showsAutomation = true
+                }))
+        }
+
+        return items
+            .sorted { ($0.date ?? .distantPast) > ($1.date ?? .distantPast) }
+            .prefix(limit)
+            .map { $0 }
+    }
+}
 
 // MARK: - Smart recents section view
 
@@ -391,24 +435,58 @@ struct QuickAction: View {
             }
             .frame(maxWidth: .infinity)
         }
-        .buttonStyle(.plain)
+        .buttonStyle(BouncyButtonStyle())
     }
 }
-                action: { store in
-                    store.browser.showsWelcome = false
-                    store.browser.showsAutomation = true
-                }))
-        }
 
-        return items
-            .sorted { ($0.date ?? .distantPast) > ($1.date ?? .distantPast) }
-            .prefix(limit)
-            .map { $0 }
+// MARK: - Shared motion helpers
+
+/// Springy press-down feedback shared by tappable cards on this screen.
+struct BouncyButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .scaleEffect(configuration.isPressed ? 0.94 : 1)
+            .animation(.spring(response: 0.25, dampingFraction: 0.55), value: configuration.isPressed)
     }
 }
-    func run(app: AppModel) {
-        app.browser.showsWelcome = false
-        action(app)
+
+private struct SettleInModifier: ViewModifier {
+    let appeared: Bool
+    let delay: Double
+
+    func body(content: Content) -> some View {
+        content
+            .opacity(appeared ? 1 : 0)
+            .offset(y: appeared ? 0 : 14)
+            .animation(.spring(response: 0.55, dampingFraction: 0.82).delay(delay), value: appeared)
     }
 }
+
+private struct BreathingModifier: ViewModifier {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var scale: CGFloat = 1
+
+    func body(content: Content) -> some View {
+        content
+            .scaleEffect(scale)
+            .onAppear {
+                guard !reduceMotion else { return }
+                withAnimation(.easeInOut(duration: 1.8).repeatForever(autoreverses: true)) {
+                    scale = 1.06
+                }
+            }
+    }
+}
+
+extension View {
+    /// Fades and rises into place; used to stagger the Welcome sections in.
+    func settleIn(_ appeared: Bool, delay: Double = 0) -> some View {
+        modifier(SettleInModifier(appeared: appeared, delay: delay))
+    }
+
+    /// A slow, gentle scale pulse — used on the mascot so it feels alive
+    /// without competing for attention.
+    func breathing() -> some View {
+        modifier(BreathingModifier())
+    }
 }

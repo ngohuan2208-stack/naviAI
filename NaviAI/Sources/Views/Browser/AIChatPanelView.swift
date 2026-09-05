@@ -18,9 +18,20 @@ struct AIChatPanelSheet: View {
                             ForEach(store.turns) { turn in
                                 MessageBubble(turn: turn)
                                     .id(turn.id)
+                                    .transition(.asymmetric(
+                                        insertion: .move(edge: turn.role == .user ? .trailing : .leading)
+                                            .combined(with: .opacity),
+                                        removal: .opacity
+                                    ))
                             }
                         }
                         .padding(12)
+                        .animation(.spring(response: 0.4, dampingFraction: 0.82), value: store.turns.count)
+                    }
+                    .background {
+                        if store.turns.isEmpty {
+                            AmbientSceneView(intensity: .whisper)
+                        }
                     }
                     .onChange(of: store.turns.count) { _ in
                         if let last = store.turns.last {
@@ -99,12 +110,20 @@ struct AIChatPanelSheet: View {
     private var emptyState: some View {
         VStack(spacing: 10) {
             MascotLogoView(size: 60)
+                .breathing()
             Text("Ask NaviAI to browse for you")
                 .font(.headline)
-            Text("Example: “Search for the 5 best ways to learn Python and open the best result.”")
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-                .multilineTextAlignment(.center)
+            RotatingGreetingView(
+                greetings: [
+                    "Example: “Search for the 5 best ways to learn Python and open the best result.”",
+                    "Cứ hỏi tự nhiên, Navi hiểu hết 🐭",
+                    "Navi có thể tự lướt web giúp bạn đó!"
+                ],
+                font: .subheadline,
+                color: .secondary
+            )
+            .multilineTextAlignment(.center)
+            .padding(.horizontal, 24)
             Button {
                 store.chatInput = "Tìm cho tôi cách kiếm tiền online."
                 store.submitPrompt(store.chatInput)
@@ -116,11 +135,12 @@ struct AIChatPanelSheet: View {
                     .padding(.vertical, 8)
                     .background(Color.accentColor.opacity(0.15), in: Capsule())
             }
-            .buttonStyle(.plain)
+            .buttonStyle(BouncyButtonStyle())
             .padding(.top, 4)
         }
         .frame(maxWidth: .infinity)
         .padding(.top, 60)
+        .transition(.opacity)
     }
 
     /// Mode selector: View (read-only) / Interact / Auto.
@@ -128,7 +148,9 @@ struct AIChatPanelSheet: View {
         HStack(spacing: 8) {
             ForEach(AgentMode.allCases) { mode in
                 Button {
-                    store.agentMode = mode
+                    withAnimation(.spring(response: 0.3, dampingFraction: 0.75)) {
+                        store.agentMode = mode
+                    }
                 } label: {
                     HStack(spacing: 4) {
                         Image(systemName: mode.symbol)
@@ -143,6 +165,7 @@ struct AIChatPanelSheet: View {
                         in: Capsule()
                     )
                     .foregroundStyle(store.agentMode == mode ? Color.white : Color.secondary)
+                    .scaleEffect(store.agentMode == mode ? 1.05 : 1)
                 }
                 .buttonStyle(.plain)
                 .disabled(store.isAgentRunning)
@@ -173,7 +196,7 @@ struct AIChatPanelSheet: View {
                     .background(canSend ? Color.accentColor : Color(.secondarySystemBackground), in: Circle())
                     .foregroundStyle(canSend ? .white : Color.secondary)
             }
-            .buttonStyle(.plain)
+            .buttonStyle(BouncyButtonStyle())
             .disabled(!canSend)
         }
         .padding(10)
@@ -195,8 +218,21 @@ struct AIChatPanelSheet: View {
 
 struct MessageBubble: View {
     let turn: ChatTurn
+    @State private var appeared = false
 
     var body: some View {
+        content
+            .scaleEffect(appeared ? 1 : 0.92)
+            .opacity(appeared ? 1 : 0)
+            .onAppear {
+                withAnimation(.spring(response: 0.35, dampingFraction: 0.75)) {
+                    appeared = true
+                }
+            }
+    }
+
+    @ViewBuilder
+    private var content: some View {
         switch turn.kind {
         case .text:
             if turn.role == .user {
