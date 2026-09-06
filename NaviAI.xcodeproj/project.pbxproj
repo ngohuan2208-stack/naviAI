@@ -65,6 +65,7 @@
 		7E00000000000000000000A4 /* NetworkCenterView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7E00000000000000000000B4 /* NetworkCenterView.swift */; };
 		7E00000000000000000000A5 /* Redactor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7E00000000000000000000B5 /* Redactor.swift */; };
 		7E00000000000000000000A6 /* DevToolsStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7E00000000000000000000B6 /* DevToolsStore.swift */; };
+		7E00000000000000000000C7 /* DevToolsJavaScript.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7E00000000000000000000C6 /* DevToolsJavaScript.swift */; };
 		7E00000000000000000000A7 /* DOMInspector.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7E00000000000000000000B7 /* DOMInspector.swift */; };
 		7E00000000000000000000A8 /* DevToolsPanelView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7E00000000000000000000B8 /* DevToolsPanelView.swift */; };
 		7E00000000000000000000AB /* ImageStudioView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7E00000000000000000000BB /* ImageStudioView.swift */; };
@@ -158,6 +159,7 @@
 		7E00000000000000000000B4 /* NetworkCenterView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetworkCenterView.swift; sourceTree = "<group>"; };
 		7E00000000000000000000B5 /* Redactor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Redactor.swift; sourceTree = "<group>"; };
 		7E00000000000000000000B6 /* DevToolsStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DevToolsStore.swift; sourceTree = "<group>"; };
+		7E00000000000000000000C6 /* DevToolsJavaScript.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DevToolsJavaScript.swift; sourceTree = "<group>"; };
 		7E00000000000000000000B7 /* DOMInspector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DOMInspector.swift; sourceTree = "<group>"; };
 		7E00000000000000000000B8 /* DevToolsPanelView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DevToolsPanelView.swift; sourceTree = "<group>"; };
 		7E00000000000000000000BB /* ImageStudioView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImageStudioView.swift; sourceTree = "<group>"; };
@@ -501,6 +503,7 @@
 			children = (
 				7E00000000000000000000B5 /* Redactor.swift */,
 				7E00000000000000000000B6 /* DevToolsStore.swift */,
+				7E00000000000000000000C6 /* DevToolsJavaScript.swift */,
 				7E00000000000000000000B7 /* DOMInspector.swift */,
 			);
 			path = DevTools;
@@ -669,6 +672,7 @@
 				7E00000000000000000000A4 /* NetworkCenterView.swift in Sources */,
 				7E00000000000000000000A5 /* Redactor.swift in Sources */,
 				7E00000000000000000000A6 /* DevToolsStore.swift in Sources */,
+				7E00000000000000000000C7 /* DevToolsJavaScript.swift in Sources */,
 				7E00000000000000000000A7 /* DOMInspector.swift in Sources */,
 				7E00000000000000000000A8 /* DevToolsPanelView.swift in Sources */,
 				7E00000000000000000000AB /* ImageStudioView.swift in Sources */,
