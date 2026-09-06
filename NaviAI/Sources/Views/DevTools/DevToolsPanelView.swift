@@ -201,7 +201,7 @@ private struct DevDebugTab: View {
     }
 
     private func diagnosisSection(_ d: DevToolsDiagnosis) -> some View {
-        Section(header: Text("Result")) {
+        Section {
             VStack(alignment: .leading, spacing: 4) {
                 Text("Problem").font(.caption.weight(.semibold)).foregroundStyle(.secondary)
                 Text(d.problem).font(.subheadline).foregroundStyle(.primary)
@@ -223,6 +223,8 @@ private struct DevDebugTab: View {
                 Text(d.suggestedFix).font(.subheadline)
             }
             LabeledContent("Source", value: d.source == .llm ? "AI" : "Offline heuristic")
+        } header: {
+            Text("Result")
         } footer: {
             Text("Diagnosis is informational. Navi will only change code when you explicitly grant permission.")
         }
