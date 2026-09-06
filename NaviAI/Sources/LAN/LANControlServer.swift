@@ -32,7 +32,7 @@ final class LANHTTPConnection {
     private static let headerTerminator = Data("\r\n\r\n".utf8)
 
     func readRequest() async throws -> LANHTTPRequest {
-        var head: Data
+        var head = Data()
         while true {
             if let range = buffer.range(of: Self.headerTerminator) {
                 head = Data(buffer[..<range.lowerBound])
