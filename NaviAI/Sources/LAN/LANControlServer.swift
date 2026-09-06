@@ -424,10 +424,14 @@ final class LANControlServer: ObservableObject {
     }
 
     private static func remoteKey(_ connection: NWConnection) -> String {
-        if let endpoint = connection.endpoint, case .hostPort(let host, _) = endpoint {
+        // NWConnection.endpoint is non-optional; match it directly.
+        if case .hostPort(let host, _) = connection.endpoint {
             return "\(host)"
         }
-        return connection.remoteAddress.description
+        if let remote = connection.currentPath?.remoteEndpoint {
+            return remote.description
+        }
+        return "unknown"
     }
 
     private func handlePair(request: LANHTTPRequest, http: LANHTTPConnection, connection: NWConnection) async {

@@ -6,6 +6,20 @@ on:
   workflow_dispatch:
 
 jobs:
+  linux-syntax:
+    name: Linux Swift syntax check (no IPA)
+    runs-on: ubuntu-latest
+    container: swift:6.1-noble
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Syntax check all Swift sources
+        run: |
+          chmod +x Scripts/syntax_check.sh
+          Scripts/syntax_check.sh
+
   build:
     name: xcodebuild (unsigned, simulator SDK)
     runs-on: macos-14
