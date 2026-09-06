@@ -423,6 +423,13 @@ final class LANControlServer: ObservableObject {
         ]
     }
 
+    private static func remoteKey(_ connection: NWConnection) -> String {
+        if let endpoint = connection.endpoint, case .hostPort(let host, _) = endpoint {
+            return "\(host)"
+        }
+        return connection.remoteAddress.description
+    }
+
     private func handlePair(request: LANHTTPRequest, http: LANHTTPConnection, connection: NWConnection) async {
         let remote = Self.remoteKey(connection)
         guard LANRateLimiter.shared.allow(key: "pair:" + remote, maxPerWindow: 10, window: 300) else {
