@@ -581,6 +581,7 @@ final class LANControlServer: ObservableObject {
             send(to: socketSession, type: LANProtocol.EventType.error, payload: ["error": "Unknown message type"])
         }
     }
+}
 
 extension LANControlServer {
 
@@ -708,7 +709,6 @@ extension LANControlServer {
             return await browser.typeTextFromRemote(target: target, text: text)
         default:
             return err("Unknown command '\(command)'")
-        }
         }
     }
 

@@ -58,6 +58,7 @@ extension CInterpreter {
     final class Lexer {
         let src: [Character]
         var pos = 0
+        var tokIdx = 0
         var line = 1
         var tokens: [Token] = []
 
@@ -175,8 +176,10 @@ extension CInterpreter {
         }
 
         private func peek(_ o: Int) -> Character { (pos + o < src.count) ? src[pos + o] : "\0" }
-        func current() -> Token { (pos < tokens.count) ? tokens[pos] : .eof }
-        func advance() -> Token { let t = current(); if pos < tokens.count { pos += 1 }; return t }
+        @discardableResult
+        func current() -> Token { (tokIdx < tokens.count) ? tokens[tokIdx] : .eof }
+        @discardableResult
+        func advance() -> Token { let t = current(); if tokIdx < tokens.count { tokIdx += 1 }; return t }
         func curLine() -> Int { line }
         func expectOp(_ s: String) throws {
             if case .op(let o) = current(), o == s { advance() }
@@ -203,8 +206,9 @@ extension CInterpreter {
         case index(Expr, Expr), assign(String, Expr, Expr)
         case cast(String, Expr), sizeof(String)
     }
-    enum Stmt {
+    indirect enum Stmt {
         case expr(Expr), decl(String, String, Expr?)
+        case declArray(String, String, Int)
         case block([Stmt]), `if`(Expr, Stmt, Stmt?), `while`(Expr, Stmt)
         case `for`(Stmt?, Expr?, Expr?, Stmt), `do`(Stmt, Expr)
         case `return`(Expr?), `break`, `continue`
@@ -239,14 +243,18 @@ extension CInterpreter {
             if case .op(let o) = lexer.current(), o == "(" {
                 try parseFunctionBody(retType: retType, name: name); return
             }
-            while case .op(let o) = lexer.current(), o != ";" { lexer.advance() }
+            while true {
+                if case .op(let o) = lexer.current(), o == ";" { break }
+                if case .eof = lexer.current() { break }
+                lexer.advance()
+            }
             try lexer.expectOp(";")
         }
 
         private func parseFunctionBody(retType: String, name: String) throws {
             try lexer.expectOp("(")
             var params: [(String, String)] = []
-            if case .op(let o) = lexer.current(), o != ")" {
+            if !atTerminator([")"]) {
                 repeat {
                     let pt = try parseType()
                     var pn = "__p\(params.count)"
@@ -276,7 +284,9 @@ extension CInterpreter {
         private func parseBlock() throws -> Stmt {
             try lexer.expectOp("{")
             var stmts: [Stmt] = []
-            while case .op(let o) = lexer.current(), o != "}" {
+            while true {
+                if case .op(let o) = lexer.current(), o == "}" { break }
+                if case .eof = lexer.current() { break }
                 stmts.append(try parseStmt())
             }
             try lexer.expectOp("}")
@@ -287,9 +297,19 @@ extension CInterpreter {
             if case .op(let o) = lexer.current(), o == s { lexer.advance(); return true }
             return false
         }
+
+        private func atTerminator(_ terms: Set<String>) -> Bool {
+            switch lexer.current() {
+            case .op(let o): return terms.contains(o)
+            case .eof: return true
+            default: return false
+            }
+        }
     }
 }
 extension CInterpreter.Parser {
+    fileprivate typealias Stmt = CInterpreter.Stmt
+    fileprivate typealias Expr = CInterpreter.Expr
     fileprivate func parseStmt() throws -> Stmt {
         if case .op(let o) = lexer.current(), o == "{" {
             return try parseBlock()
@@ -322,7 +342,7 @@ extension CInterpreter.Parser {
             case "return":
                 lexer.advance()
                 var e: Expr? = nil
-                if case .op(let o) = lexer.current(), o != ";" { e = try tryParseExpr() }
+                if !atTerminator([";"]) { e = try tryParseExpr() }
                 try lexer.expectOp(";")
                 return .return(e)
             case "break": lexer.advance(); try lexer.expectOp(";"); return .break
@@ -352,6 +372,13 @@ extension CInterpreter.Parser {
         let t = try parseType()
         var name = "__v"
         if case .ident(let n) = lexer.current() { lexer.advance(); name = n }
+        if matchOp("[") {
+            var count = 0
+            if case .intLit(let v) = lexer.current() { lexer.advance(); count = v }
+            try lexer.expectOp("]")
+            try lexer.expectOp(";")
+            return .declArray(t, name, count)
+        }
         var ini: Expr? = nil
         if case .op(let o) = lexer.current(), o == "=" { lexer.advance(); ini = try tryParseExpr() }
         try lexer.expectOp(";")
@@ -404,11 +431,11 @@ extension CInterpreter.Parser {
         return cond
     }
 
-    fileprivate func parseOr()  throws -> Expr { bin(parseAnd, ["||"]) }
-    fileprivate func parseAnd() throws -> Expr { bin(parseBitOr, ["&&"]) }
-    fileprivate func parseBitOr() throws -> Expr { bin(parseXor, ["|"]) }
-    fileprivate func parseXor() throws -> Expr { bin(parseBitAnd, ["^"]) }
-    fileprivate func parseBitAnd() throws -> Expr { bin(parseEq, ["&"]) }
+    fileprivate func parseOr()  throws -> Expr { try bin(parseAnd, ["||"]) }
+    fileprivate func parseAnd() throws -> Expr { try bin(parseBitOr, ["&&"]) }
+    fileprivate func parseBitOr() throws -> Expr { try bin(parseXor, ["|"]) }
+    fileprivate func parseXor() throws -> Expr { try bin(parseBitAnd, ["^"]) }
+    fileprivate func parseBitAnd() throws -> Expr { try bin(parseEq, ["&"]) }
 
     private func parseEq() throws -> Expr {
         var l = try parseComp()
@@ -472,7 +499,7 @@ extension CInterpreter.Parser {
                 if case .ident(let name) = e {
                     lexer.advance()
                     var args: [Expr] = []
-                    if case .op(let o2) = lexer.current(), o2 != ")" {
+                    if !atTerminator([")"]) {
                         repeat { args.append(try tryParseExpr()) } while matchOp(",")
                     }
                     try lexer.expectOp(")")
@@ -527,7 +554,7 @@ extension CInterpreter {
         var heap: [UInt8] = []
         var heapUsed = 0
         var vars: [[String: Int]] = [[:]]
-        var functions: [String: Function] = [:]
+        var functions: [String: CInterpreter.Function] = [:]
         var returnValue: Int? = nil
         var breaking = false
         var continuing = false
@@ -537,7 +564,7 @@ extension CInterpreter {
             self.output = output
         }
 
-        func execute(_ functions: [Function]) throws {
+        func execute(_ functions: [CInterpreter.Function]) throws {
             for f in functions { self.functions[f.name] = f }
             if let main = functions.first(where: { $0.name == "main" }) {
                 try call(main, [])
@@ -589,14 +616,20 @@ extension CInterpreter {
 }
 
 extension CInterpreter.VM {
+    fileprivate typealias Stmt = CInterpreter.Stmt
+    fileprivate typealias Expr = CInterpreter.Expr
+    fileprivate typealias Function = CInterpreter.Function
     fileprivate func exec(_ s: Stmt) throws {
-        checkSteps()
+        try checkSteps()
         if returnValue != nil || breaking || continuing { return }
         switch s {
         case .expr(let e): _ = try eval(e)
         case .decl(let t, let n, let ini):
             let v = try ini.map { try eval($0) } ?? 0
             set(n, v); _ = t
+        case .declArray(_, let n, let count):
+            let p = try alloc(max(count, 0) * 4)
+            set(n, p)
         case .block(let ss):
             for s in ss {
                 try exec(s)
@@ -639,7 +672,7 @@ extension CInterpreter.VM {
 }
 extension CInterpreter.VM {
     fileprivate func eval(_ e: Expr) throws -> Int {
-        checkSteps()
+        try checkSteps()
         switch e {
         case .intLit(let v): return v
         case .strLit(let s):
@@ -730,6 +763,7 @@ extension CInterpreter.VM {
         switch target {
         case .ident(let n): try assign(n, v)
         case .deref(let p): try store32(try eval(p), v)
+        case .unary(let op, let p) where op == "*": try store32(try eval(p), v)
         case .index(let base, let idx):
             let b = try eval(base), i = try eval(idx)
             try store32(b + i * 4, v)
@@ -754,7 +788,7 @@ extension CInterpreter.VM {
 }
 extension CInterpreter.VM {
     fileprivate func callFn(_ name: String, _ args: [Expr]) throws -> Int {
-        checkSteps()
+        try checkSteps()
         let argVals = try args.map { try eval($0) }
         switch name {
         case "printf": return try printf(args)
