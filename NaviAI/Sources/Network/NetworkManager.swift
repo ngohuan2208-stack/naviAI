@@ -17,7 +17,7 @@ final class NetworkManager: ObservableObject {
     private init() {
         monitor.pathUpdateHandler = { [weak self] path in
             let snapshot = NetworkManager.snapshot(from: path)
-            Task { @MainActor in
+            Task { @MainActor [weak self] in
                 self?.apply(path: path, snapshot: snapshot)
             }
         }
@@ -35,7 +35,7 @@ final class NetworkManager: ObservableObject {
         s.internet = path.status == .satisfied
         if path.usesInterfaceType(.wifi) { s.interface = .wifi }
         else if path.usesInterfaceType(.cellular) { s.interface = .cellular }
-        else if path.usesRouteType(.wiredEthernet) || path.usesInterfaceType(.wiredEthernet) { s.interface = .wired }
+        else if path.usesInterfaceType(.wiredEthernet) { s.interface = .wired }
         else if path.usesInterfaceType(.loopback) { s.interface = .loopback }
         else if path.status == .satisfied { s.interface = .other }
         s.expensive = path.isExpensive

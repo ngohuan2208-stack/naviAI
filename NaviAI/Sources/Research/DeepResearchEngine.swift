@@ -70,12 +70,13 @@ final class DeepResearchEngine: ObservableObject {
                 await openSearch(for: q, browser: browser)
                 await browser.waitForPageSettle(timeout: 20)
                 let links = await resultLinks(browser: browser)
-                for url in links.prefix(2) {
+                for raw in links.prefix(2) {
                     if Task.isCancelled { break }
                     if contexts.count >= maxSources { break }
+                    guard let u = URL(string: raw) else { continue }
                     stage = .reading(contexts.count + 1, maxSources)
-                    progress = "Reading \(URL(string: url)?.host ?? url)"
-                    await browser.loadURL(url)
+                    progress = "Reading \(u.host ?? raw)"
+                    await browser.loadURL(u)
                     await browser.waitForPageSettle(timeout: 25)
                     if let ctx = await browser.deepReadContext() {
                         contexts.append(ContextManager.shared.handlePageContext(ctx))

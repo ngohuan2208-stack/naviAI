@@ -158,7 +158,8 @@ final class AgentProviderManager: ObservableObject {
     }
 
     func add(name: String, endpoint: String, model: String, apiKey: String) {
-        var cfg = AgentProviderConfig(name: name.isEmpty ? "Remote Agent" : name,
+        var cfg = AgentProviderConfig(kind: "default",
+                                      name: name.isEmpty ? "Remote Agent" : name,
                                       endpoint: endpoint,
                                       model: model)
         providers.append(cfg)

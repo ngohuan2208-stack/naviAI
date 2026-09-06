@@ -119,7 +119,7 @@ final class ProxyPool: ObservableObject {
         guard rotation == .timedInterval || rotation == .random else { return }
         let seconds = TimeInterval(max(30, rotationIntervalSeconds))
         rotationTimer = Timer.scheduledTimer(withTimeInterval: seconds, repeats: true) { [weak self] _ in
-            Task { @MainActor in
+            Task { @MainActor [weak self] in
                 guard let self else { return }
                 switch self.rotation {
                 case .timedInterval:

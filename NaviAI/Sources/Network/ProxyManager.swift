@@ -92,8 +92,6 @@ extension ProxyManager {
         case .http, .https:
             dict[kCFNetworkProxiesHTTPProxy as String] = proxy.host
             dict[kCFNetworkProxiesHTTPPort as String] = proxy.port
-            dict[kCFNetworkProxiesHTTPSProxy as String] = proxy.host
-            dict[kCFNetworkProxiesHTTPSPort as String] = proxy.port
         case .socks5:
             dict[kCFStreamPropertySOCKSProxyHost as String] = proxy.host
             dict[kCFStreamPropertySOCKSProxyPort as String] = proxy.port

@@ -17,19 +17,11 @@ final class VPNManager: ObservableObject {
 
     @Published private(set) var systemVPNActive: Bool = false
 
-    @Published private(set) var dnsServers: [String] = []
-
     var externalVPNActive: Bool { systemVPNActive }
 
     private init() {}
 
     func observe(path: NWPath) {
         systemVPNActive = path.usesInterfaceType(.other)
-        dnsServers = path.resolvedEndpoints.compactMap { endpoint in
-            if case .hostPort(let host, _) = endpoint {
-                return "\(host)"
-            }
-            return nil
-        }
     }
 }
