@@ -24,6 +24,8 @@ jobs:
     name: xcodebuild (unsigned, simulator SDK)
     runs-on: macos-14
     timeout-minutes: 45
+    permissions:
+      contents: write
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -63,6 +65,25 @@ jobs:
           name: NaviAI-unsigned-ipa
           path: build/NaviAI-unsigned.ipa
           if-no-files-found: error
+
+      - name: Publish raw IPA to GitHub Releases (no zip wrapper)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG="build-latest"
+          NOTES="Unsigned IPA built from commit ${GITHUB_SHA::7}.
+          Tải file NaviAI-unsigned.ipa trực tiếp (không bọc zip).
+          Lưu ý: file chưa ký — ký lại bằng Sideloadly/AltStore hoặc chứng chỉ Apple trước khi cài lên thiết bị."
+          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" > /dev/null 2>&1; then
+            gh release upload "$TAG" build/NaviAI-unsigned.ipa --clobber --repo "$GITHUB_REPOSITORY"
+            gh release edit "$TAG" --title "NaviAI unsigned build (${GITHUB_SHA::7})" --notes "$NOTES" --repo "$GITHUB_REPOSITORY"
+          else
+            gh release create "$TAG" build/NaviAI-unsigned.ipa \
+              --title "NaviAI unsigned build (${GITHUB_SHA::7})" \
+              --notes "$NOTES" \
+              --repo "$GITHUB_REPOSITORY"
+          fi
+          gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json assets --jq '.assets[] | "\(.name) — \(.size) bytes"'
 
       - name: Upload build log on failure
         if: failure()
