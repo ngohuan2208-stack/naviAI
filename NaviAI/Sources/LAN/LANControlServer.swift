@@ -708,6 +708,24 @@ extension LANControlServer {
                 ])
             }
             return err("No article content found on this page")
+        case "runCode":
+            guard let langStr = args["language"] as? String,
+                  let code = args["code"] as? String else {
+                return err("Missing 'language' or 'code' argument")
+            }
+            let langStrLow = langStr.lowercased()
+            guard langStrLow == "c" || langStrLow == "javascript" || langStrLow == "js" else {
+                return err("Only 'c' and 'javascript' are supported for remote runCode")
+            }
+            let language: CodeLanguage = (langStrLow == "c") ? .c : .javascript
+            let result = await CodeLabStore.shared.run(code: code, language: language)
+            return ok([
+                "stdout": result.stdout,
+                "stderr": result.stderr,
+                "exitCode": result.exitCode,
+                "durationMs": result.durationMs,
+                "steps": result.steps
+            ])
 
     // MARK: Broadcasting
 
@@ -798,7 +816,8 @@ case "agent.start":
     private static let controlCommands: Set<String> = [
         "navigate", "search", "home", "reload", "back", "forward",
         "openTab", "switchTab", "closeTab", "scroll",
-        "agent.start", "agent.stop", "agent.resume", "clickText", "typeText"
+        "agent.start", "agent.stop", "agent.resume", "clickText", "typeText",
+        "runCode"
     ]
 
     private func ok(_ payload: [String: Any]) -> (String, [String: Any]) {

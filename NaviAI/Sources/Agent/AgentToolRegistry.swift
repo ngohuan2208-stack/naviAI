@@ -36,6 +36,7 @@ enum AgentToolRegistry {
         ToolInfo(name: "wait", description: "Wait for the page or a timer.", risk: .safe),
         ToolInfo(name: "notify", description: "Show a local notification.", risk: .safe),
         ToolInfo(name: "capture_web_screenshot", description: "Capture the visible page as a JPEG (viewport only).", risk: .safe),
+        ToolInfo(name: "runCode", description: "Execute a code snippet in the Code Lab sandbox (C or JavaScript).", risk: .safe),
         ToolInfo(name: "stopSelf", description: "Stop the current task.", risk: .safe)
     ]
 

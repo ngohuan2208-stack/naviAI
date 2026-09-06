@@ -1,5 +1,19 @@
 import SwiftUI
 import UIKit
+import SwiftUI
+import UIKit
+
+// MARK: - Code Lab tab
+
+private struct DevCodeLabTab: View {
+    @ObservedObject private var store = CodeLabStore.shared
+
+    var body: some View {
+        CodeLabView(store: store)
+    }
+}
+
+// MARK: - Console tab
 
 // MARK: - Console tab
 
@@ -245,7 +259,7 @@ struct DevToolsPanelView: View {
     @State private var refreshing = false
 
     enum Panel: String, CaseIterable, Identifiable {
-        case console, network, elements, storage, debug
+        case console, network, elements, storage, debug, codeLab
         var id: String { rawValue }
         var label: String {
             switch self {
@@ -254,6 +268,7 @@ struct DevToolsPanelView: View {
             case .elements: return "Elements"
             case .storage: return "Storage"
             case .debug: return "Debug"
+            case .codeLab: return "Code Lab"
             }
         }
         var symbol: String {
@@ -263,6 +278,7 @@ struct DevToolsPanelView: View {
             case .elements: return "curlybraces.square"
             case .storage: return "internaldrive"
             case .debug: return "ladybug"
+            case .codeLab: return "chevron.left.forwardslash.chevron.right"
             }
         }
     }
@@ -285,6 +301,7 @@ struct DevToolsPanelView: View {
                 case .elements: DevElementsTab(store: store, inspector: inspector)
                 case .storage: DevStorageTab(store: store, inspector: inspector)
                 case .debug: DevDebugTab(store: store, inspector: inspector)
+                case .codeLab: DevCodeLabTab()
                 }
             }
             .onAppear {

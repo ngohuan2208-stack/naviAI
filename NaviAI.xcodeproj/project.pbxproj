@@ -91,6 +91,10 @@
 		7950331D895445B583CA9DF3 /* SafariExport.swift in Sources */ = {isa = PBXBuildFile; fileRef = D926AB36FE99426784299721 /* SafariExport.swift */; };
 		1B7DC5FCFE344FCD9716F447 /* LANRemoteSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 206CE23623414CC2B8AEBFB8 /* LANRemoteSettingsView.swift */; };
 		557D275D365942CC819D5E8C /* BrowserDataSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F212F7342EB64C0884FAED91 /* BrowserDataSettingsView.swift */; };
+		A158CFBECD4B46898593D107 /* CInterpreter.swift in Sources */ = {isa = PBXBuildFile; fileRef = F509A5020D1942B992D66361 /* CInterpreter.swift */; };
+		6A2C5962350449798ACCAAF0 /* CodeLabStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD2DD7151776478DB8E8672E /* CodeLabStore.swift */; };
+		C11536614C6D4D4B8BAC3B1E /* CodeLabView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 83AF28524A574999B8ABB283 /* CodeLabView.swift */; };
+		1670FA3D646A4E9EAD5922AE /* CodeLabTool.swift in Sources */ = {isa = PBXBuildFile; fileRef = 976AAC69A14A4B3DAFFBB0CB /* CodeLabTool.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -180,6 +184,10 @@
 		D926AB36FE99426784299721 /* SafariExport.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = SafariExport.swift; sourceTree = "<group>"; };
 		206CE23623414CC2B8AEBFB8 /* LANRemoteSettingsView.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = LANRemoteSettingsView.swift; sourceTree = "<group>"; };
 		F212F7342EB64C0884FAED91 /* BrowserDataSettingsView.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = BrowserDataSettingsView.swift; sourceTree = "<group>"; };
+		F509A5020D1942B992D66361 /* CInterpreter.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = CInterpreter.swift; sourceTree = "<group>"; };
+		FD2DD7151776478DB8E8672E /* CodeLabStore.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = CodeLabStore.swift; sourceTree = "<group>"; };
+		83AF28524A574999B8ABB283 /* CodeLabView.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = CodeLabView.swift; sourceTree = "<group>"; };
+		976AAC69A14A4B3DAFFBB0CB /* CodeLabTool.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = CodeLabTool.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -318,6 +326,7 @@
 				0C2509F51EEE50FED4317EF7 /* Research */,
 				7C6EE239E7D51B5D41EB6BA7 /* Private */,
 				F699C1E510401912545D7A83 /* Tabs */,
+				53FCA71F9183471BBDFA65E5 /* CodeLab */,
 				7E00000000000000000000C0 /* Network */,
 				7E00000000000000000000C1 /* DevTools */,
 
@@ -557,6 +566,17 @@
 			path = BrowserData;
 			sourceTree = "<group>";
 		};
+		53FCA71F9183471BBDFA65E5 /* CodeLab */ = {
+			isa = PBXGroup;
+			children = (
+				F509A5020D1942B992D66361 /* CInterpreter.swift */,
+				FD2DD7151776478DB8E8672E /* CodeLabStore.swift */,
+				83AF28524A574999B8ABB283 /* CodeLabView.swift */,
+				976AAC69A14A4B3DAFFBB0CB /* CodeLabTool.swift */,
+			);
+			path = CodeLab;
+			sourceTree = "<group>";
+		};
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
@@ -689,6 +709,10 @@
 				7E0000000000000000000012 /* HistoryStore.swift in Sources */,
 				D4EE014303B395ADDCE7C9EA /* OnboardingWelcomeView.swift in Sources */,
 				6F941ED28C5D10AEA0C6984C /* Chat.swift in Sources */,
+				A158CFBECD4B46898593D107 /* CInterpreter.swift in Sources */,
+				6A2C5962350449798ACCAAF0 /* CodeLabStore.swift in Sources */,
+				C11536614C6D4D4B8BAC3B1E /* CodeLabView.swift in Sources */,
+				1670FA3D646A4E9EAD5922AE /* CodeLabTool.swift in Sources */,
 				EE1DD01E6C8C482DA839E369 /* AgentWatchdog.swift in Sources */,
 				6D50B01144104E33896A1A32 /* AgentTaskPersistence.swift in Sources */,
 				BFD3E0C8494F43FAABFCFA42 /* WebPageContextPipeline.swift in Sources */,

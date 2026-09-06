@@ -135,6 +135,8 @@ extension BrowserStore {
             return "STOP_SELF requested (\(reason)). Stopping the current task."
         case "generateImage":
             return await toolGenerateImage(prompt: stringArg(args, "prompt"), size: stringArg(args, "size"))
+        case "runCode":
+            return await toolRunCode(args: args)
         default:
             return "Unknown tool '\(name)'."
         }
@@ -589,6 +591,26 @@ extension BrowserStore {
             pendingVisionScreenshot = shot
         }
         return "Captured web screenshot: \(shot.pixelWidth)×\(shot.pixelHeight)px, \(shot.byteCount) bytes (JPEG). Merged into vision context when the model supports images."
+    }
+
+    private func toolRunCode(args: [String: Any]) async -> String {
+        guard let langStr = args["language"] as? String,
+              let code = args["code"] as? String else {
+            return "runCode requires 'language' and 'code' arguments."
+        }
+        let langLow = langStr.lowercased()
+        guard langLow == "c" || langLow == "javascript" || langLow == "js" else {
+            return "runCode supports only 'c' and 'javascript'. Got '\(langStr)'."
+        }
+        let language: CodeLanguage = langLow == "c" ? .c : .javascript
+        let result = await CodeLabStore.shared.run(code: code, language: language)
+        var parts: [String] = []
+        parts.append("Language: \(result.language.displayName)")
+        parts.append("Duration: \(result.durationMs)ms | Exit: \(result.exitCode)")
+        if !result.stdout.isEmpty { parts.append("stdout:\n\(result.stdout)") }
+        if !result.stderr.isEmpty { parts.append("stderr:\n\(result.stderr)") }
+        if result.stdout.isEmpty && result.stderr.isEmpty { parts.append("(no output)") }
+        return parts.joined(separator: "\n")
     }
 
     private func toolGenerateImage(prompt: String, size: String?) async -> String {
