@@ -24,6 +24,13 @@ final class WebCoordinator: NSObject {
             injectionTime: .atDocumentStart,
             forMainFrameOnly: true
         ))
+        // DevTools bridge: console / exceptions / resource timing → DevToolsStore.
+        controller.addUserScript(WKUserScript(
+            source: DevToolsJavaScript.source,
+            injectionTime: .atDocumentStart,
+            forMainFrameOnly: true
+        ))
+        controller.add(DevToolsMessageHandler(), name: "naviDevTools")
         config.userContentController = controller
 
         config.websiteDataStore = ephemeral ? WKWebsiteDataStore.nonPersistent() : WKWebsiteDataStore.default()

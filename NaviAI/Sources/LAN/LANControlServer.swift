@@ -237,6 +237,11 @@ final class LANControlServer: ObservableObject {
                         self.serverURL = self.computeDisplayURL()
                         self.lastError = nil
                         self.startPolling()
+                        // Always have a fresh PIN available so the web client
+                        // can pair immediately without a dead end.
+                        if LANPairing.shared.pinExpiresAt == nil {
+                            LANPairing.shared.generatePIN()
+                        }
                     case .waiting(let error):
                         // iOS may park the listener in .waiting while the
                         // Local Network permission dialog is pending. Do not
@@ -466,8 +471,12 @@ final class LANControlServer: ObservableObject {
             return
         }
         let deviceName = (body?["deviceName"] as? String) ?? "Web client"
+        guard LANPairing.shared.pinExpiresAt != nil else {
+            await http.sendJSON(["error": "No active PIN. On the iPhone open Settings → LAN Remote Control → Pair a new device."], status: 400)
+            return
+        }
         guard LANPairing.shared.verify(pin) else {
-            await http.sendJSON(["error": "Invalid or expired PIN"], status: 403)
+            await http.sendJSON(["error": "Invalid or expired PIN. Generate a new one on the iPhone (Pair a new device)."], status: 403)
             return
         }
         let token = LANSecurity.randomToken()

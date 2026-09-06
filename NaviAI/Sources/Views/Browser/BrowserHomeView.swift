@@ -168,8 +168,6 @@ private struct BrowserContentView: View {
             .buttonStyle(.plain)
             .disabled(store.activeTab?.webView.url == nil)
 
-            AgentModePicker(store: store)
-
             Menu {
                 Button {
                     store.newTab(url: nil, activate: true)

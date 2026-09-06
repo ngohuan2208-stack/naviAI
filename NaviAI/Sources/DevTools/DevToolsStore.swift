@@ -119,6 +119,18 @@ final class DevToolsStore: ObservableObject {
             line: line))
     }
 
+    func reportResource(method: String, url: String, durationMS: Int?, sizeBytes: Int?) {
+        guard isCapturing else { return }
+        network.append(DevNetworkEntry(
+            method: method,
+            url: Redactor.redactText(url),
+            durationMS: durationMS,
+            sizeBytes: sizeBytes))
+        if network.count > Limits.network {
+            network.removeFirst(network.count - Limits.network)
+        }
+    }
+
     func clearConsole() {
         console.removeAll()
     }
