@@ -54,7 +54,7 @@ final class DeepResearchEngine: ObservableObject {
         guard let browser else { return }
         researchTask?.cancel()
         researchTask = Task { [weak self] in
-            guard let self, let browser else { return }
+            guard let self, let browser = self.browser else { return }
             isRunning = true
             stage = .planning
             progress = "Planning…"

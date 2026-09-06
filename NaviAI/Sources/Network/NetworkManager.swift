@@ -30,7 +30,7 @@ final class NetworkManager: ObservableObject {
         vpn.observe(path: path)
     }
 
-    private static func snapshot(from path: NWPath) -> NetworkStatusSnapshot {
+    private nonisolated static func snapshot(from path: NWPath) -> NetworkStatusSnapshot {
         var s = NetworkStatusSnapshot()
         s.internet = path.status == .satisfied
         if path.usesInterfaceType(.wifi) { s.interface = .wifi }

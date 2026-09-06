@@ -17,6 +17,8 @@ final class VPNManager: ObservableObject {
 
     @Published private(set) var systemVPNActive: Bool = false
 
+    @Published private(set) var dnsServers: [String] = []
+
     var externalVPNActive: Bool { systemVPNActive }
 
     private init() {}

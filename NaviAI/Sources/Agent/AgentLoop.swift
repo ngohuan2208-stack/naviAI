@@ -141,7 +141,7 @@ extension BrowserStore {
             return
         }
 
-        let task: PersistedAgentTask
+        var task: PersistedAgentTask
         if let existing = runningTask {
             task = existing
         } else {
