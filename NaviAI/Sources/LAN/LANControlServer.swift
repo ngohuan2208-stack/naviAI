@@ -545,7 +545,10 @@ final class LANControlServer: ObservableObject {
     }
 
     private func addressOf(request: LANHTTPRequest) -> String? {
-// MARK: WebSocket session lifecycle
+        return request.headers["x-forwarded-for"] ?? request.headers["remote-addr"]
+    }
+
+    // MARK: WebSocket session lifecycle
 
     private func attachWebSocket(connection: NWConnection, token: String, preloaded: Data) {
         let socket = LANWebSocket(connection: connection, preloaded: preloaded)
@@ -727,6 +730,30 @@ extension LANControlServer {
                 "steps": result.steps
             ])
 
+        case "agent.start":
+            guard let goal = args["goal"] as? String, !goal.isEmpty else { return err("agent.start needs a goal") }
+            let continuation = (args["continuation"] as? String) ?? ""
+            browser.startContinuousTask(goal: goal, continuationPrompt: continuation)
+            return ok(["message": "Agent started", "goal": goal])
+        case "agent.stop":
+            browser.stopAgent()
+            return ok(["message": "Agent stopped"])
+        case "agent.resume":
+            let resumed = browser.resumeContinuousTask()
+            return resumed ? ok(["message": "Task resumed"]) : err("No resumable task")
+        case "clickText":
+            guard let text = args["text"] as? String, !text.isEmpty else { return err("clickText needs text") }
+            return await browser.clickTextFromRemote(text)
+        case "typeText":
+            guard let target = args["target"] as? String else { return err("typeText needs target") }
+            guard let text = args["text"] as? String else { return err("typeText needs text") }
+            return await browser.typeTextFromRemote(target: target, text: text)
+        default:
+            return err("Unknown command '\(command)'")
+        }
+        }
+    }
+
     // MARK: Broadcasting
 
     private func startPolling() {
@@ -784,34 +811,11 @@ extension LANControlServer {
               let text = String(data: data, encoding: .utf8) else { return }
         socket.send(text: text)
     }
-        request.headers["x-forwarded-for"] ?? request.headers["remote-addr"]
-    }
 
     private func settingsAllowObserve() -> Bool {
         browser?.settings.lanAllowObserve ?? false
     }
-case "agent.start":
-            guard let goal = args["goal"] as? String, !goal.isEmpty else { return err("agent.start needs a goal") }
-            let continuation = (args["continuation"] as? String) ?? ""
-            browser.startContinuousTask(goal: goal, continuationPrompt: continuation)
-            return ok(["message": "Agent started", "goal": goal])
-        case "agent.stop":
-            browser.stopAgent()
-            return ok(["message": "Agent stopped"])
-        case "agent.resume":
-            let resumed = browser.resumeContinuousTask()
-            return resumed ? ok(["message": "Task resumed"]) : err("No resumable task")
-        case "clickText":
-            guard let text = args["text"] as? String, !text.isEmpty else { return err("clickText needs text") }
-            return await browser.clickTextFromRemote(text)
-        case "typeText":
-            guard let target = args["target"] as? String else { return err("typeText needs target") }
-            guard let text = args["text"] as? String else { return err("typeText needs text") }
-            return await browser.typeTextFromRemote(target: target, text: text)
-        default:
-            return err("Unknown command '\(command)'")
-        }
-    }
+
 
     private static let controlCommands: Set<String> = [
         "navigate", "search", "home", "reload", "back", "forward",
@@ -980,5 +984,4 @@ private extension ActiveTaskCard {
             "totalSteps": totalSteps
         ]
     }
-}
 }
