@@ -33,16 +33,36 @@ jobs:
           xcodebuild -version
           xcodebuild -showsdks | grep -E 'iphonesimulator|iphoneos' || true
 
-      - name: Build
+      - name: Build (unsigned, iOS device)
         run: |
           set -o pipefail
           xcodebuild -project NaviAI.xcodeproj \
             -scheme NaviAI \
-            -destination 'generic/platform=iOS Simulator' \
-            -configuration Debug \
+            -destination 'generic/platform=iOS' \
+            -configuration Release \
+            -derivedDataPath build/DerivedData \
             CODE_SIGNING_ALLOWED=NO \
             CODE_SIGN_IDENTITY= \
+            CODE_SIGNING_REQUIRED=NO \
             build 2>&1 | tee build.log | xcpretty
+
+      - name: Package unsigned IPA
+        run: |
+          APP=$(find build/DerivedData/Build/Products -type d -name '*.app' | head -1)
+          echo "Found app bundle: $APP"
+          mkdir -p build/ipa/Payload
+          cp -R "$APP" build/ipa/Payload/
+          cd build/ipa
+          zip -qry ../NaviAI-unsigned.ipa Payload
+          cd ../..
+          ls -lh build/NaviAI-unsigned.ipa
+
+      - name: Upload IPA artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: NaviAI-unsigned-ipa
+          path: build/NaviAI-unsigned.ipa
+          if-no-files-found: error
 
       - name: Upload build log on failure
         if: failure()
