@@ -197,6 +197,19 @@ final class LANControlServer: ObservableObject {
 
     private init() {}
 
+    /// Map raw Network.framework errors (especially Bonjour/DNS ones) to
+    /// actionable messages. The classic case is DNS -65555 (NoAuth): iOS
+    /// blocked Local Network access because the permission was denied or the
+    /// Info.plist is missing NSLocalNetworkUsageDescription/NSBonjourServices.
+    private static func friendlyError(_ error: NWError, waiting: Bool) -> String {
+        if case .dns(let code) = error, code == Int32(-65555) {
+            let base = "Local Network is blocked (NWError -65555 NoAuth): iOS has not granted local network access."
+            let hint = "Open Settings → Privacy & Security → Local Network and allow NaviAI, then stop/start LAN Remote again."
+            return waiting ? "\(base) Waiting for permission… \(hint)" : "\(base) \(hint)"
+        }
+        return error.localizedDescription
+    }
+
     var uptime: TimeInterval { Date().timeIntervalSince(startupDate) }
 
     func start(browser: BrowserStore) {
@@ -224,9 +237,16 @@ final class LANControlServer: ObservableObject {
                         self.serverURL = self.computeDisplayURL()
                         self.lastError = nil
                         self.startPolling()
+                    case .waiting(let error):
+                        // iOS may park the listener in .waiting while the
+                        // Local Network permission dialog is pending. Do not
+                        // stay silent — surface it so the UI is not stuck on
+                        // "Starting…" forever.
+                        self.lastError = Self.friendlyError(error, waiting: true)
                     case .failed(let error):
-                        self.status = .failed(error.localizedDescription)
-                        self.lastError = error.localizedDescription
+                        let message = Self.friendlyError(error, waiting: false)
+                        self.status = .failed(message)
+                        self.lastError = message
                     case .cancelled:
                         self.status = .stopped
                     default:

@@ -35,6 +35,9 @@ targets:
         NSAppTransportSecurity:
           NSAllowsArbitraryLoadsInWebContent: true
           NSAllowsLocalNetworking: true
+        NSLocalNetworkUsageDescription: "NaviAI uses the local network to run the LAN Remote control server so other devices on the same Wi-Fi can control this browser."
+        NSBonjourServices:
+          - "_navi._tcp"
         NSHumanReadableCopyright: ""
         ITSAppUsesNonExemptEncryption: false
     settings:

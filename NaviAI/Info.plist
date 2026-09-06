@@ -38,6 +38,12 @@
 		<key>NSAllowsLocalNetworking</key>
 		<true/>
 	</dict>
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>NaviAI uses the local network to run the LAN Remote control server so other devices on the same Wi-Fi can control this browser.</string>
+	<key>NSBonjourServices</key>
+	<array>
+		<string>_navi._tcp</string>
+	</array>
 	<key>UILaunchScreen</key>
 	<dict>
 		<key>UIColorName</key>
