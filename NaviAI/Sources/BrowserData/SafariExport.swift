@@ -1,10 +1,5 @@
 import Foundation
 
-// MARK: - Safari / Navi export
-
-/// Builds a safe, self-describing export of supported Navi browser data. The
-/// export intentionally NEVER contains API keys, Keychain secrets, passwords,
-/// cookies, session tokens or private credentials.
 enum SafariExport {
 
     struct ExportedConversation: Codable {
@@ -15,7 +10,6 @@ enum SafariExport {
         var associatedURLs: [String]
     }
 
-    /// Compose the full export dictionary as JSON data.
     static func build(browser: BrowserStore) -> Data? {
         let conversations = ConversationStore.shared.conversations.prefix(200).map { convo in
             ExportedConversation(title: convo.title,

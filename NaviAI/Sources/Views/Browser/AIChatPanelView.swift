@@ -143,7 +143,6 @@ struct AIChatPanelSheet: View {
         .transition(.opacity)
     }
 
-    /// Mode selector: View (read-only) / Interact / Auto.
     private var modePicker: some View {
         HStack(spacing: 8) {
             ForEach(AgentMode.allCases) { mode in
@@ -213,8 +212,6 @@ struct AIChatPanelSheet: View {
         store.submitPrompt(text)
     }
 }
-
-// MARK: - Bubble
 
 struct MessageBubble: View {
     let turn: ChatTurn

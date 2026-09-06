@@ -1,17 +1,10 @@
 import Foundation
 
-// MARK: - Tool risk level
-
 enum ToolRiskLevel {
     case safe
     case risky
 }
 
-// MARK: - Agent tool registry
-
-/// Static catalog of the agent/automation tool surface, shared by the
-/// interactive agent and the automation engine. Centralises risk
-/// classification used by the confirmation policy (item 12).
 enum AgentToolRegistry {
 
     struct ToolInfo {
@@ -20,9 +13,6 @@ enum AgentToolRegistry {
         let risk: ToolRiskLevel
     }
 
-    /// The browser-facing tool catalog (mirrors the tools registered in
-    /// AgentTools.swift; kept in sync by the same enum that drives automation
-    /// step kinds).
     static let tools: [ToolInfo] = [
         ToolInfo(name: "openURL", description: "Open a URL in the current tab.", risk: .safe),
         ToolInfo(name: "searchWeb", description: "Run a web search on the configured engine.", risk: .safe),
@@ -40,15 +30,10 @@ enum AgentToolRegistry {
         ToolInfo(name: "stopSelf", description: "Stop the current task.", risk: .safe)
     ]
 
-    /// Classification used by the confirmation policy: purchases, form
-    /// submissions, messages, deletions, financial/account actions are RISKY
-    /// and require confirmation; reads, navigation and scrolling are SAFE.
     static func riskLevel(for kind: AutomationStepKind) -> ToolRiskLevel {
         switch kind {
         case .typeText:
-            // Typing itself is safe; submitting (Enter / submit buttons) is
-            // what can spend money or change state — those asks already come
-            // from the interactive agent's riskReason() path.
+
             return .safe
         case .navigate, .search, .readPage, .scroll, .extractText, .wait, .askLLM, .notify:
             return .safe
@@ -57,7 +42,6 @@ enum AgentToolRegistry {
         }
     }
 
-    /// Human-readable description of what a step will do (confirmation text).
     static func actionDescription(for kind: AutomationStepKind) -> String {
         kind.label
     }

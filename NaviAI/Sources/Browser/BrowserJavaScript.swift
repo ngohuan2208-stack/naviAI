@@ -1,7 +1,5 @@
 import Foundation
 
-// MARK: - DOM snapshot models (mirror of the JSON the injected JS returns)
-
 struct DOMRectInfo: Codable, Equatable {
     var x: Double
     var y: Double
@@ -26,7 +24,6 @@ struct DOMItemInfo: Codable, Equatable {
     var input: Bool
     var rect: DOMRectInfo
 
-    /// Free-text description used when talking to the model.
     var summary: String {
         var parts: [String] = []
         if !text.isEmpty { parts.append("text: \(text)") }
@@ -64,17 +61,11 @@ struct DOMClickResult: Codable, Equatable {
 
 enum BrowserJavaScript {
 
-    /// User-facing heuristic flags gathered from the live page.
     struct PageSignals: Codable, Equatable {
         var hasCaptchaFrame: Bool
         var bodyHint: String
     }
 
-    // MARK: - Core injected script
-
-    /// This is injected at document-start into the main frame of every page.
-    /// It installs a small DOM interaction engine on window.__navi. It never
-    /// bypasses CAPTCHAs - it only reports them so the agent can pause.
     static let coreScript: String = """
     (function () {
       if (window.__navi) { return; }
@@ -455,8 +446,6 @@ enum BrowserJavaScript {
     })();
     """
 
-    // MARK: - Expression helpers
-
     static func call(_ fn: String, args: [String]) -> String {
         "JSON.parse(" + "window.__navi.\(fn)(\(args.joined(separator: ",")))" + ")"
     }
@@ -512,10 +501,6 @@ enum BrowserJavaScript {
         "window.__navi.info()"
     }
 
-    // MARK: - Natural interaction helpers
-
-    /// Page readiness + DOM mutation counter, used by InteractionEngine to
-    /// wait until dynamic content has finished rendering.
     static func readinessExpr() -> String {
         """
         (function() {
@@ -526,15 +511,10 @@ enum BrowserJavaScript {
         """
     }
 
-    /// Focus an input/textarea/select without changing its value - the first
-    /// half of a natural "tap the field, then type" interaction.
     static func focusExpr(id: Int) -> String {
         "window.__navi.focus(\(id))"
     }
 
-    /// Appends a chunk of text to an input using the KeyboardEvent-aware
-    /// setter (React/Vue compatible), keeping any existing content. Returns
-    /// JSON {ok, len}.
     static func appendTextExpr(id: Int, text: String) -> String {
         let escaped = text
             .replacingOccurrences(of: "\\", with: "\\\\")
@@ -543,12 +523,10 @@ enum BrowserJavaScript {
         return "window.__navi.appendText(\(id), \"\(escaped)\")"
     }
 
-    /// True when the element referenced by the findText snapshot still exists.
     static func elementExistsExpr(id: Int) -> String {
         "window.__navi.exists(\(id))"
     }
 
-    /// Top absolute http(s) links on the page (for research / link extraction).
     static func topLinksExpr(max: Int) -> String {
         """
         (function(){
@@ -563,9 +541,6 @@ enum BrowserJavaScript {
         """
     }
 
-    /// Deep structured read of the page: headings, paragraphs, links, inputs,
-    /// forms, tables, lists and metadata — a real semantic snapshot, never a
-    /// raw DOM dump. This powers Deep Read and multi-source Context.
     static func deepStructureExpr(maxParagraphs: Int = 200, maxLinks: Int = 80) -> String {
         """
         (function(){
@@ -637,12 +612,6 @@ enum BrowserJavaScript {
         """
     }
 
-    // MARK: - Realtime "what the user sees" context
-
-    /// Compact visible-state capture: URL, title, ready state, scroll position,
-    /// viewport, focused element, visible text excerpt, headings, links,
-    /// buttons, inputs, forms and a structural fingerprint. This is the
-    /// relevance-filtered feed for AI vision and the LAN realtime view.
     static func realtimeContextExpr() -> String {
         """
         (function() {
@@ -778,10 +747,6 @@ enum BrowserJavaScript {
         """
     }
 
-    // MARK: - Article extraction (news / web reading pipeline)
-
-    /// Reads like a person: finds the article/main content, extracts headings,
-    /// paragraphs and byline, and returns a compact excerpt. Never raw DOM.
     static func articleExtractionExpr() -> String {
         """
         (function() {

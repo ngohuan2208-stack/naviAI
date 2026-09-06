@@ -1,14 +1,12 @@
 import Foundation
 import Combine
 
-// MARK: - Browser history entry
-
 struct BrowserHistoryEntry: Codable, Identifiable, Equatable {
     var id: UUID = UUID()
     var url: String
     var title: String
     var visitedAt: Date
-    /// Session / tab metadata (item 9) — small, anonymous, useful.
+
     var sessionID: UUID?
     var sessionName: String?
 
@@ -17,11 +15,6 @@ struct BrowserHistoryEntry: Codable, Identifiable, Equatable {
     }
 }
 
-// MARK: - Browser history store
-
-/// Persistent browser history with search, single delete, multi delete,
-/// clear-all and clear-by-time-range. Saved as JSON in Application Support
-/// (browsing history is not a credential; API keys stay in the Keychain).
 @MainActor
 final class HistoryStore: ObservableObject {
 
@@ -41,8 +34,6 @@ final class HistoryStore: ObservableObject {
         load()
     }
 
-    // MARK: Load / save
-
     private func load() {
         guard let data = try? Data(contentsOf: url) else { return }
         let decoder = JSONDecoder()
@@ -58,13 +49,11 @@ final class HistoryStore: ObservableObject {
         }
     }
 
-    // MARK: Recording (called from BrowserStore)
-
     func recordVisit(url: URL, title: String, sessionID: UUID?, sessionName: String?) {
         guard !url.absoluteString.isEmpty else { return }
         let scheme = url.scheme?.lowercased() ?? ""
         guard ["http", "https"].contains(scheme) else { return }
-        // Coalesce a page reload / redirect storm for the exact same URL.
+
         if let last = entries.last, last.url == url.absoluteString,
            Date().timeIntervalSince(last.visitedAt) < 5 { return }
         entries.append(BrowserHistoryEntry(url: url.absoluteString,
@@ -78,15 +67,11 @@ final class HistoryStore: ObservableObject {
         save()
     }
 
-    // MARK: Search
-
     func search(_ query: String) -> [BrowserHistoryEntry] {
         let q = query.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !q.isEmpty else { return entries }
         return entries.filter { $0.title.localizedCaseInsensitiveContains(q) || $0.url.localizedCaseInsensitiveContains(q) }
     }
-
-    // MARK: Deletion
 
     func delete(entryID: UUID) {
         entries.removeAll { $0.id == entryID }

@@ -1,8 +1,6 @@
 import Foundation
 import Combine
 
-// MARK: - Research models
-
 struct DeepResearchSource: Codable, Identifiable, Equatable {
     var id = UUID()
     var title: String
@@ -18,12 +16,6 @@ struct DeepResearchReport: Codable, Identifiable, Equatable {
     var createdAt: Date = Date()
 }
 
-// MARK: - Engine
-
-/// Deep Research / Research Mode. Runs the autonomous
-/// Plan → Search → Read (many sources) → Dedupe → Synthesize → Report loop,
-/// with a visible progress indicator and a Stop control. Sources are always
-/// kept for attribution; the AI clearly distinguishes claims per source.
 @MainActor
 final class DeepResearchEngine: ObservableObject {
 
@@ -45,8 +37,6 @@ final class DeepResearchEngine: ObservableObject {
 
     private init() {}
 
-    // MARK: Control
-
     func stop() {
         researchTask?.cancel()
         isRunning = false
@@ -59,8 +49,6 @@ final class DeepResearchEngine: ObservableObject {
     func deleteReports(at offsets: IndexSet) {
         reports.remove(atOffsets: offsets)
     }
-
-    // MARK: Run
 
     func run(_ question: String) {
         guard let browser else { return }
@@ -114,12 +102,11 @@ final class DeepResearchEngine: ObservableObject {
             }
         }
     }
-// MARK: Plan
 
     private func planQueries(for question: String, browser: BrowserStore) async -> [String] {
         guard let config = browser.providers.activeProvider,
               let key = browser.providers.apiKey(for: config) else {
-            return [question]   // graceful fallback: single-query research
+            return [question]
         }
         let system = """
         You plan a web research. Output ONLY a JSON array of 2-4 short, distinct search queries \
@@ -147,8 +134,6 @@ final class DeepResearchEngine: ObservableObject {
         return arr.map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }.filter { !$0.isEmpty }
     }
 
-    // MARK: Search + read
-
     private func openSearch(for query: String, browser: BrowserStore) async {
         if let url = SearchManager.shared.resultsURL(for: query) {
             await browser.loadURL(url)
@@ -157,15 +142,12 @@ final class DeepResearchEngine: ObservableObject {
         }
     }
 
-    /// Top absolute http(s) links from the current page — the raw result list.
     private func resultLinks(browser: BrowserStore) async -> [String] {
         guard let value = try? await browser.agentEvaluate(BrowserJavaScript.topLinksExpr(max: 12)),
               let raw = value as? String else { return [] }
         let cleaned = raw.replacingOccurrences(of: "\"", with: "").replacingOccurrences(of: "[", with: "").replacingOccurrences(of: "]", with: "")
         return cleaned.split(separator: ",").map(String.init)
     }
-
-    // MARK: Synthesize
 
     private func synthesize(question: String, contexts: [WebPageContext], browser: BrowserStore) async -> String {
         guard let config = browser.providers.activeProvider,
@@ -194,10 +176,8 @@ final class DeepResearchEngine: ObservableObject {
     }
 }
 
-// MARK: - BrowserStore deep-read bridge
-
 extension BrowserStore {
-    /// Deep read of the current page: full structured context (not a DOM dump).
+
     func deepReadContext() async -> WebPageContext? {
         guard let value = try? await agentEvaluate(BrowserJavaScript.deepStructureExpr()),
               let s = value as? String,

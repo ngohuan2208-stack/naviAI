@@ -2,11 +2,6 @@ import Foundation
 import Combine
 import Network
 
-// MARK: - App-level network manager
-
-/// One place that owns how NaviAI's own HTTP traffic flows: applies the active
-/// proxy dictionary to the shared session configuration, watches the system
-/// network path, and measures basic health (DNS + latency).
 @MainActor
 final class NetworkManager: ObservableObject {
     static let shared = NetworkManager()
@@ -49,26 +44,18 @@ final class NetworkManager: ObservableObject {
         return s
     }
 
-    // MARK: Proxy application
-
-    /// Routes ALL app-level URLSession traffic through the selected proxy.
-    /// Call again after any proxy change.
     func applyProxyToSharedSession() {
         let dict = proxy.connectionProxyDictionary()
         URLSession.shared.configuration.connectionProxyDictionary = dict
         status.proxyActive = dict != nil
     }
 
-    // MARK: Health checks
-
-    /// DNS resolution check: can we open a TCP connection to host:443?
     func checkDNS(host: String = "apple.com") async -> Bool {
         let ok = await Self.canConnect(host: host, port: 443, timeout: 6)
         status.dnsResolves = ok
         return ok
     }
 
-    /// Latency probe: 4 GETs to a fast 204 endpoint, median kept.
     func measureLatency() async -> Int? {
         guard let url = URL(string: "https://www.gstatic.com/generate_204") else { return nil }
         let config = URLSessionConfiguration.ephemeral
@@ -101,7 +88,6 @@ final class NetworkManager: ObservableObject {
         return median
     }
 
-    /// One-tap "run full check" for the Settings screen.
     func runFullCheck() async {
         _ = await checkDNS()
         _ = await measureLatency()
@@ -139,7 +125,6 @@ final class NetworkManager: ObservableObject {
     }
 }
 
-/// Tiny thread-safe one-shot flag for connection callbacks.
 private final class TimeoutBox: @unchecked Sendable {
     private let lock = NSLock()
     private var _finished = false

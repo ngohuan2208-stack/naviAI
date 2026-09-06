@@ -1,9 +1,5 @@
 import SwiftUI
 
-// MARK: - Network center
-
-/// Settings + status hub for the Network module: proxy pool, rotation, VPN
-/// info (honest), and live status checks. All credentials live in Keychain.
 struct NetworkCenterView: View {
     @EnvironmentObject var app: AppModel
     @ObservedObject private var proxy = ProxyManager.shared
@@ -37,8 +33,6 @@ struct NetworkCenterView: View {
             }
         }
     }
-
-    // MARK: Sections
 
     private var statusSection: some View {
         Section("Status") {
@@ -276,8 +270,6 @@ extension NetworkCenterView {
         }
     }
 }
-
-// MARK: - Proxy editor sheet
 
 struct ProxyEditorView: View {
     let profile: ProxyProfile?

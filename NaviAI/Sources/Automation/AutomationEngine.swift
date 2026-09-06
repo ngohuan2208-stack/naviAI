@@ -2,8 +2,6 @@ import Foundation
 import Combine
 import UIKit
 
-// MARK: - Automation engine errors
-
 enum AutomationEngineError: LocalizedError {
     case noProvider
     case noAPIKey
@@ -26,41 +24,22 @@ enum AutomationEngineError: LocalizedError {
     }
 }
 
-// MARK: - Run delegate
-
-/// Bridge between the engine and the rest of the app (UI, history,
-/// notifications, background handling). Implemented by AutomationScheduler.
 @MainActor
 protocol AutomationEngineDelegate: AnyObject {
     func engineDidStartRun(_ engine: AutomationEngine, task: AutomationTask, runID: UUID)
     func engine(_ engine: AutomationEngine, task: AutomationTask, runID: UUID, willExecuteStepAt index: Int, step: AutomationStep)
     func engine(_ engine: AutomationEngine, task: AutomationTask, runID: UUID, didLog message: String)
-    /// Called when the policy requires a user decision. The run SUSPENDS (the
-    /// whole async chain waits) until the user answers in the UI.
+
     func engine(_ engine: AutomationEngine, task: AutomationTask, runID: UUID, requiresConfirmation message: String, for step: AutomationStep) async -> Bool
     func engine(_ engine: AutomationEngine, task: AutomationTask, runID: UUID, didFinishWith status: AutomationTaskStatus, stepsExecuted: Int, result: String, error: String?, confirmations: [String])
 }
 
-// MARK: - Automation engine
-
-/// Executes the steps of an `AutomationTask` against the live browser.
-///
-/// Real implementation notes:
-///  • Browser steps reuse `BrowserStore.executeTool(named:argumentsJSON:)` —
-///    the same battle-tested path the interactive agent uses, which already
-///    performs natural cursor movement, focus-before-type, page settling and
-///    CAPTCHA detection (it stops and asks; it never bypasses protections).
-///  • Token optimization: the model is NOT part of step execution — only
-///    `askLLM` steps call the provider, and they send only compressed page
-///    context (title, URL, trimmed text), never a full DOM dump.
-///  • Every run is bounded by `task.maxSteps` and `task.timeout`.
 @MainActor
 final class AutomationEngine: ObservableObject {
 
     weak var delegate: AutomationEngineDelegate?
     weak var browser: BrowserStore?
 
-    /// The task currently executing (for the floating status card).
     @Published var runningTaskID: UUID?
     @Published var currentStepIndex: Int = 0
     @Published var currentStepTotal: Int = 0
@@ -70,8 +49,6 @@ final class AutomationEngine: ObservableObject {
     private var timedOut = false
 
     var isRunning: Bool { runTask != nil }
-
-    // MARK: Control
 
     func start(task: AutomationTask, trigger: String = "manual", runID: UUID = UUID()) {
         guard runTask == nil else { return }
@@ -86,13 +63,10 @@ final class AutomationEngine: ObservableObject {
         runTask?.cancel()
     }
 
-    // MARK: The run loop
-
     private func run(task: AutomationTask, runID: UUID, trigger: String) async {
         var stepsExecuted = 0
         var confirmations: [String] = []
-        // Task recovery: when resuming a suspended run, continue AFTER the
-        // last persisted step instead of restarting from scratch.
+
         let startStep = task.pendingRunState?.stepIndex ?? 0
 
         runningTaskID = task.id
@@ -132,10 +106,6 @@ final class AutomationEngine: ObservableObject {
                 delegate?.engine(self, task: task, runID: runID, willExecuteStepAt: index, step: step)
                 delegate?.engine(self, task: task, runID: runID, didLog: "\(step.summary)")
 
-                // Confirmation policy (item 12) — risky actions never run
-                // silently. ".always" asks for every step; ".riskyActions"
-                // only for risky ones; ".never" SKIPS risky steps (it never
-                // performs them silently).
                 let risk = AgentToolRegistry.riskLevel(for: step.kind)
                 let needsAsk = task.confirmationPolicy == .always ||
                                (risk == .risky && task.confirmationPolicy == .riskyActions)
@@ -154,9 +124,6 @@ final class AutomationEngine: ObservableObject {
                     continue
                 }
 
-                // CAPTCHA guard: if a challenge is on screen, pause the run and
-                // let the human solve it. NaviAI never bypasses anti-bot checks;
-                // if the user declines, the run is cancelled cleanly.
                 if await isCaptchaOnScreen() {
                     delegate?.engine(self, task: task, runID: runID, didLog: "CAPTCHA / security check detected — waiting for the user.")
                     AutomationNotification.shared.postLocal(
@@ -175,7 +142,7 @@ final class AutomationEngine: ObservableObject {
                 stepsExecuted += 1
 
                 if let askResult = outcome {
-                    // askLLM step produced the final answer.
+
                     resultText = askResult
                 }
                 await InteractionEngine.shared.pauseBetweenActions()
@@ -214,11 +181,6 @@ final class AutomationEngine: ObservableObject {
         currentSummary = ""
     }
 
-    /// Executes one step. Returns a non-nil string when the step produced the
-    /// run's final result (askLLM).
-    // MARK: CAPTCHA detection (detect → pause → ask; never bypass)
-
-    /// True when the current page shows a CAPTCHA / anti-bot challenge.
     private func isCaptchaOnScreen() async -> Bool {
         guard let browser else { return false }
         guard let signals = try? await browser.fetchSignals() else { return false }
@@ -263,11 +225,6 @@ final class AutomationEngine: ObservableObject {
         }
     }
 
-    // MARK: Step arguments
-
-    /// Builds the tool-call arguments for a step. For click/type steps the
-    /// step's `value` is a *text hint*; we resolve it to a live elementId by
-    /// running findText against the page (real elements, no blind clicks).
     private func stepArguments(for step: AutomationStep, browser: BrowserStore) async throws -> String {
         switch step.kind {
         case .navigate:
@@ -286,8 +243,7 @@ final class AutomationEngine: ObservableObject {
             let id = try await resolveElementID(matching: step.value, preferInput: false, browser: browser)
             return Self.jsonString(["elementId": id])
         case .typeText:
-            // Editor contract: `value` = field text hint, `note` = the text to
-            // type (falls back to value when created programmatically).
+
             let text = step.note.isEmpty ? step.value : step.note
             if let id = step.amount {
                 return Self.jsonString(["elementId": id, "text": text])
@@ -299,9 +255,6 @@ final class AutomationEngine: ObservableObject {
         }
     }
 
-    /// Resolves an element text hint (e.g. "Search") to the current elementId
-    /// via the page's own findText engine. Refreshed on every run, so stale
-    /// ids never accumulate across scheduled runs.
     private func resolveElementID(matching hint: String, preferInput: Bool, browser: BrowserStore) async throws -> Int {
         guard !hint.isEmpty else {
             throw AutomationEngineError.stepFailed("Element hint is empty for a click/type step.")
@@ -328,11 +281,6 @@ final class AutomationEngine: ObservableObject {
 
     struct FindList: Codable { var items: [DOMItemInfo] }
 
-    // MARK: Token-optimized LLM step
-
-    /// `askLLM` sends ONLY compressed page context — title, URL, a trimmed
-    /// body excerpt and the action summary so far. Never a full DOM dump,
-    /// never past screenshots, never API keys.
     private func askLLM(task: AutomationTask, prompt: String) async throws -> String {
         guard let browser else { throw AutomationEngineError.noBrowser }
         guard let config = browser.providers.activeProvider else { throw AutomationEngineError.noProvider }
@@ -359,8 +307,6 @@ final class AutomationEngine: ObservableObject {
         )
         return reply.text?.trimmingCharacters(in: .whitespacesAndNewlines) ?? "(no answer)"
     }
-
-    // MARK: JSON helper
 
     private static func jsonString(_ object: [String: Any]) -> String {
         guard let data = try? JSONSerialization.data(withJSONObject: object) else { return "{}" }

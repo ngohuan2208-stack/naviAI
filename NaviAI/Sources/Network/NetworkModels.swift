@@ -1,10 +1,6 @@
 import Foundation
 import Combine
 
-// MARK: - Proxy profile
-
-/// A user-defined proxy configuration. Credentials are NEVER persisted in this
-/// struct — they live in the iOS Keychain (see ProxyManager.keychainAccount).
 struct ProxyProfile: Codable, Identifiable, Equatable {
     enum Kind: String, Codable, CaseIterable, Identifiable {
         case http, https, socks5
@@ -23,12 +19,11 @@ struct ProxyProfile: Codable, Identifiable, Equatable {
     var host: String
     var port: Int
     var kind: Kind = .http
-    /// Username is stored here (not secret); password goes to the Keychain.
+
     var username: String = ""
 
     var displayEndpoint: String { "\(kind.rawValue)://\(host):\(port)" }
 
-    /// Serialized form used for the import/pool text area: "name|kind|host|port|user".
     var poolLine: String { [name, kind.rawValue, host, String(port), username].joined(separator: "|") }
 
     static func parse(line: String) -> ProxyProfile? {
@@ -44,15 +39,13 @@ struct ProxyProfile: Codable, Identifiable, Equatable {
     }
 }
 
-// MARK: - Rotation policy
-
 enum ProxyRotationMode: String, Codable, CaseIterable, Identifiable {
-    case manual            // stick to the selected profile
-    case roundRobin        // cycle the pool in order
-    case random            // random pick on every switch
-    case rotateAfterTask   // advance when a task/run finishes
-    case rotateOnFailure   // advance only after a connection failure
-    case timedInterval     // advance every N seconds
+    case manual
+    case roundRobin
+    case random
+    case rotateAfterTask
+    case rotateOnFailure
+    case timedInterval
 
     var id: String { rawValue }
 
@@ -68,9 +61,6 @@ enum ProxyRotationMode: String, Codable, CaseIterable, Identifiable {
     }
 }
 
-// MARK: - Proxy pool
-
-/// Ordered pool of proxy profiles with rotation. Persisted via ProxyManager.
 @MainActor
 final class ProxyPool: ObservableObject {
     @Published var profiles: [ProxyProfile] = []
@@ -80,8 +70,6 @@ final class ProxyPool: ObservableObject {
 
     private var rotationTimer: Timer?
     private var roundRobinIndex = 0
-
-    // MARK: Pool management
 
     func setProfiles(_ list: [ProxyProfile]) {
         profiles = list
@@ -109,8 +97,6 @@ final class ProxyPool: ObservableObject {
         roundRobinIndex = idx
     }
 
-    // MARK: Rotation
-
     func advance(force: Bool = false) {
         guard !profiles.isEmpty else { return }
         guard profiles.count > 1 || force else { return }
@@ -118,7 +104,6 @@ final class ProxyPool: ObservableObject {
         current = profiles[roundRobinIndex]
     }
 
-    /// Random rotation, used by the .random mode.
     func advanceRandom() {
         guard profiles.count > 1 else { return }
         var idx = Int.random(in: 0..<profiles.count)
@@ -129,7 +114,6 @@ final class ProxyPool: ObservableObject {
         current = profiles[idx]
     }
 
-    /// Starts the timer for timed/random rotation (called on launch/persist).
     func startTimedRotation() {
         stopTimedRotation()
         guard rotation == .timedInterval || rotation == .random else { return }
@@ -155,8 +139,6 @@ final class ProxyPool: ObservableObject {
     }
 }
 
-
-/// The full, persisted network configuration.
 struct NetworkSettingsSnapshot: Codable, Equatable {
     var profiles: [ProxyProfile] = []
     var poolOrder: [UUID] = []
@@ -170,13 +152,11 @@ enum NetworkPathKind: String {
     case none, wifi, cellular, wired, loopback, other
 }
 
-// MARK: - Network status snapshot
-
 struct NetworkStatusSnapshot: Equatable {
     var internet: Bool = false
     var interface: NetworkPathKind = .none
-    var expensive: Bool = false      // cellular / hotspot
-    var constrained: Bool = false    // Low Data Mode
+    var expensive: Bool = false
+    var constrained: Bool = false
     var proxyActive: Bool = false
     var vpnActive: Bool = false
     var dnsResolves: Bool = false

@@ -22,7 +22,6 @@ final class ProviderStore: ObservableObject {
         didSet { persistCachedModels() }
     }
 
-    /// "lastError" surfaced when listing models fails, keyed by provider id.
     @Published var modelFetchErrors: [String: String] = [:]
 
     private enum Keys {
@@ -49,8 +48,6 @@ final class ProviderStore: ObservableObject {
         loadCachedModels()
     }
 
-    // MARK: - Active provider
-
     var activeProvider: ProviderConfig? {
         providers.first { $0.id == activeProviderID }
     }
@@ -58,8 +55,6 @@ final class ProviderStore: ObservableObject {
     func select(_ config: ProviderConfig) {
         activeProviderID = config.id
     }
-
-    // MARK: - CRUD
 
     func upsert(_ config: ProviderConfig) {
         if let idx = providers.firstIndex(where: { $0.id == config.id }) {
@@ -87,8 +82,6 @@ final class ProviderStore: ObservableObject {
         return config
     }
 
-    // MARK: - API keys (Keychain only)
-
     func apiKey(for config: ProviderConfig) -> String? {
         KeychainService.read(account: config.apiKeyAccount)
     }
@@ -104,8 +97,6 @@ final class ProviderStore: ObservableObject {
     func hasKey(for config: ProviderConfig) -> Bool {
         apiKey(for: config)?.isEmpty == false
     }
-
-    // MARK: - Model listing
 
     var availableModels: [String] {
         guard let id = activeProviderID else { return [] }
@@ -175,14 +166,14 @@ final class ProviderStore: ObservableObject {
         while base.hasSuffix("/") { base.removeLast() }
         switch config.kind {
         case .gemini:
-            // https://generativelanguage.googleapis.com/v1beta -> append /models
+
             return URL(string: base + "/models")
         case .openAI, .deepseek, .chatGPT, .openRouter:
             return URL(string: base + "/models")
         case .claude:
             return nil
         case .custom:
-            // Some custom servers expose /models, many do not. Best effort.
+
             return URL(string: base + "/models")
         }
     }
@@ -195,13 +186,11 @@ final class ProviderStore: ObservableObject {
         }
     }
 
-    // MARK: - Defaults & persistence
-
     static func defaultProviders() -> [ProviderConfig] {
         var list = AIProviderKind.allCases
             .filter { $0 != .custom }
             .map { ProviderConfig(kind: $0) }
-        // Gemini suggestion entry tweak: add sensible vision flag handled in UI.
+
         list = list.map { p in
             var copy = p
             copy.supportsVision = p.kind == .openAI || p.kind == .claude || p.kind == .gemini

@@ -1,10 +1,5 @@
 import SwiftUI
 
-// MARK: - Command bar (command palette)
-
-/// A keyboard-first command palette: type a query, get one "go to" action plus
-/// matching app commands and open tabs. Purely functional — every action maps
-/// to an existing BrowserStore API.
 struct CommandBarView: View {
     @ObservedObject var store: BrowserStore
     @Environment(\.dismiss) private var dismiss
@@ -78,7 +73,6 @@ struct CommandBarView: View {
             })
         }
 
-        // Matching open tabs (title or URL).
         let matches = store.searchTabs(trimmed).prefix(6)
         for tab in matches {
             let isPrivate = tab.isPrivate
@@ -95,10 +89,7 @@ struct CommandBarView: View {
         return list
     }
 
-    // MARK: Body (see below)
 }
-
-// MARK: - Command bar UI
 
 extension CommandBarView {
     var body: some View {

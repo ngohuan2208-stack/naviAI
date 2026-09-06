@@ -1,10 +1,5 @@
 import SwiftUI
 
-// MARK: - Deep research view
-
-/// UI for the Deep Research engine: ask a question, watch the
-/// Plan → Search → Read → Synthesize progress, stop at any time, and browse
-/// past reports with their sources.
 struct ResearchView: View {
     @ObservedObject private var engine = DeepResearchEngine.shared
     @EnvironmentObject var app: AppModel
@@ -33,8 +28,6 @@ struct ResearchView: View {
         .navigationBarTitleDisplayMode(.inline)
     }
 
-    // MARK: Ask
-
     private var askSection: some View {
         Section("Research question") {
             TextField("e.g. Compare the newest iPhone models' cameras", text: $question, axis: .vertical)
@@ -62,8 +55,6 @@ struct ResearchView: View {
         engine.run(question.trimmingCharacters(in: .whitespacesAndNewlines))
     }
 
-    // MARK: Progress
-
     @ViewBuilder
     private var progressSection: some View {
         Section("Progress") {
@@ -80,8 +71,6 @@ struct ResearchView: View {
             }
         }
     }
-
-    // MARK: Reports
 
     @ViewBuilder
     private var reportsSection: some View {

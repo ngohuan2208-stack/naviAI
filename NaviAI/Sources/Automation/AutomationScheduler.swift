@@ -3,21 +3,8 @@ import Combine
 import UIKit
 import BackgroundTasks
 
-// MARK: - Automation scheduler
-
-/// Owns every automation task: scheduling, lifecycle (start / pause / resume /
-/// stop / restart / retry), persistence and recovery across relaunches.
-///
-/// iOS honesty: a Timer only fires while the app is in the foreground (or
-/// briefly while suspending). When iOS suspends the app, scheduling pauses and
-/// is re-armed on foreground with `restoreAfterBackground()`. Where the system
-/// allows a real background wake-up, a BGAppRefreshTask (official API) is
-/// registered to catch up on missed runs. Nothing here tries to bypass iOS
-/// background limits — state is persisted and runs resume when possible.
 @MainActor
 final class AutomationScheduler: ObservableObject {
-
-    // MARK: Published state
 
     @Published private(set) var tasks: [AutomationTask] = [] {
         didSet { AutomationPersistence.shared.saveTasks(tasks) }
@@ -35,17 +22,13 @@ final class AutomationScheduler: ObservableObject {
         let stepSummary: String
     }
 
-    // MARK: Collaborators
-
     let engine = AutomationEngine()
     private var tickTimer: Timer?
     private var confirmationContinuation: CheckedContinuation<Bool, Never>?
-    /// Tasks the user paused while their engine run was still unwinding.
+
     private var pausingTaskIDs = Set<UUID>()
     private var cancellables = Set<AnyCancellable>()
     private weak var browser: BrowserStore?
-
-    // MARK: Init
 
     init(browser: BrowserStore) {
         self.browser = browser
@@ -60,24 +43,18 @@ final class AutomationScheduler: ObservableObject {
         tasks = AutomationPersistence.shared.loadTasks()
         history = AutomationPersistence.shared.loadHistory()
 
-        // Recovery: any task that claims to be running when the app died was
-        // suspended mid-run. Keep its pendingRunState for the resume prompt,
-        // surface it as suspended and re-schedule it.
         for i in tasks.indices where tasks[i].status == .running {
             if tasks[i].pendingRunState == nil {
                 tasks[i].pendingRunState = .init(stepIndex: 0, startedAt: Date(), trigger: "restored")
             }
             tasks[i].status = .suspended
         }
-        // Paused/scheduled tasks get a fresh next-run on launch.
+
         for i in tasks.indices where tasks[i].status == .scheduled {
             tasks[i].nextRun = Self.nextRunDate(for: tasks[i], from: Date())
         }
     }
 
-    // MARK: Ticker
-
-    /// One 1-second timer drives every schedule (cheap, foreground only).
     private func armTicker() {
         tickTimer?.invalidate()
         let t = Timer(timeInterval: 1, repeats: true) { [weak self] _ in
@@ -94,16 +71,14 @@ final class AutomationScheduler: ObservableObject {
             guard tasks[i].status == .scheduled,
                   let next = tasks[i].nextRun, next <= now else { continue }
             startRun(taskID: tasks[i].id, trigger: tasks[i].schedule.kind == .runOnce ? "schedule (once)" : "schedule (repeat)")
-            break // one run at a time
+            break
         }
     }
-
-    // MARK: Task CRUD
 
     @discardableResult
     func add(task: AutomationTask) -> Bool {
         var t = task
-        // Guard: never accept an unbounded repeat task (item 3 — "không chạy vô hạn").
+
         if t.schedule.kind == .repeat_ && !t.hasBound {
             t.schedule.maxRuns = 100
         }
@@ -140,9 +115,6 @@ final class AutomationScheduler: ObservableObject {
         history.filter { $0.taskID == taskID }.sorted { $0.startTime > $1.startTime }
     }
 
-    // MARK: Lifecycle controls
-
-    /// Start now (manual or scheduled fire).
     func startRun(taskID: UUID, trigger: String = "manual") {
         guard let idx = tasks.firstIndex(where: { $0.id == taskID }) else { return }
         guard engine.isRunning == false else { return }
@@ -167,7 +139,7 @@ final class AutomationScheduler: ObservableObject {
         guard let idx = tasks.firstIndex(where: { $0.id == taskID }) else { return }
         if engine.runningTaskID == taskID {
             pausingTaskIDs.insert(taskID)
-            // If the run is suspended waiting for a confirmation, release it.
+
             if confirmationRequest?.taskID == taskID {
                 answerConfirmation(false)
             }
@@ -200,7 +172,6 @@ final class AutomationScheduler: ObservableObject {
         }
     }
 
-    /// Restart = reset counters/schedule and run immediately.
     func restart(taskID: UUID) {
         guard let idx = tasks.firstIndex(where: { $0.id == taskID }) else { return }
         tasks[idx].runCount = 0
@@ -209,7 +180,6 @@ final class AutomationScheduler: ObservableObject {
         tasks[idx].nextRun = Date()
     }
 
-    /// Retry the last failed run.
     func retry(taskID: UUID) {
         guard let idx = tasks.firstIndex(where: { $0.id == taskID }) else { return }
         tasks[idx].status = .scheduled
@@ -217,7 +187,6 @@ final class AutomationScheduler: ObservableObject {
         startRun(taskID: taskID, trigger: "retry")
     }
 
-    /// Resume a suspended run from its persisted step (recovery flow).
     func resumeSuspended(taskID: UUID) {
         guard let idx = tasks.firstIndex(where: { $0.id == taskID }) else { return }
         guard tasks[idx].status == .suspended else { return }
@@ -232,12 +201,6 @@ final class AutomationScheduler: ObservableObject {
         tasks[idx].nextRun = Self.nextRunDate(for: tasks[idx], from: Date())
     }
 
-    // MARK: Scheduling math
-
-    /// Computes the next fire date. Rules:
-    ///  • runOnce          -> now + delay (once; then completed)
-    ///  • repeat           -> lastRun/now + interval, clamped into the daily
-    ///                        window, stopped by maxRuns / endDate.
     static func nextRunDate(for task: AutomationTask, from reference: Date) -> Date? {
         let cal = Calendar.current
         let sched = task.schedule
@@ -248,7 +211,6 @@ final class AutomationScheduler: ObservableObject {
             return target > reference ? target : reference.addingTimeInterval(sched.delaySeconds)
         }
 
-        // Repeat: bounded?
         if let maxRuns = sched.maxRuns, maxRuns > 0, task.runCount >= maxRuns { return nil }
         if let end = sched.endDate, reference >= end { return nil }
 
@@ -256,13 +218,12 @@ final class AutomationScheduler: ObservableObject {
         var candidate = base.addingTimeInterval(sched.intervalSeconds)
         if candidate < reference { candidate = reference.addingTimeInterval(sched.intervalSeconds) }
 
-        // Clamp into the daily window when one is configured.
         if let open = AutomationSchedule.parseClock(sched.startTime) {
             var openDate = cal.date(bySettingHour: open.h, minute: open.m, second: 0, of: candidate) ?? candidate
             if let close = AutomationSchedule.parseClock(sched.endTime) {
                 var closeDate = cal.date(bySettingHour: close.h, minute: close.m, second: 0, of: candidate) ?? candidate
                 if closeDate <= openDate {
-                    // Window wraps midnight (e.g. 20:00-06:00).
+
                     closeDate = cal.date(byAdding: .day, value: 1, to: closeDate) ?? closeDate
                 }
                 if candidate < openDate && candidate > (openDate.addingTimeInterval(-86_400)) {
@@ -272,7 +233,7 @@ final class AutomationScheduler: ObservableObject {
                     candidate = max(openDate, candidate)
                 }
             } else {
-                // No end: only clamp to the open time.
+
                 let dayOpen = cal.date(bySettingHour: open.h, minute: open.m, second: 0, of: candidate) ?? candidate
                 let prevDayOpen = dayOpen.addingTimeInterval(-86_400)
                 if candidate < dayOpen && candidate >= prevDayOpen { candidate = dayOpen }
@@ -283,21 +244,15 @@ final class AutomationScheduler: ObservableObject {
         return candidate
     }
 
-    // MARK: Background handling (official iOS mechanisms only)
-
     private func registerBackgroundRefresh() {
-        // BGTaskScheduler requires the Info.plist BGTaskSchedulerPermittedIdentifiers
-        // key, the "fetch" background mode, and a launch handler registered
-        // BEFORE any request is submitted. Registration happens exactly once;
-        // everything is best-effort and safe to call at launch.
+
         guard !Self.backgroundRegistered else {
             scheduleNextBackgroundRefresh()
             return
         }
         Self.backgroundRegistered = true
         BGTaskScheduler.shared.register(forTaskWithIdentifier: Self.backgroundRefreshID, using: nil) { [weak self] bgTask in
-            // The launch handler runs off-main; hop to the actor before
-            // touching scheduler state.
+
             Task { @MainActor [weak self] in
                 guard let self else {
                     bgTask.setTaskCompleted(success: false)
@@ -315,25 +270,20 @@ final class AutomationScheduler: ObservableObject {
         scheduleNextBackgroundRefresh()
     }
 
-    /// Submits the next background refresh request (~15 min horizon). Errors
-    /// (simulator, missing plist entries) are non-fatal: scheduling still
-    /// works in the foreground via the 1s ticker.
     private func scheduleNextBackgroundRefresh() {
         let request = BGAppRefreshTaskRequest(identifier: Self.backgroundRefreshID)
         request.earliestBeginDate = Date(timeIntervalSinceNow: 15 * 60)
         do {
             try BGTaskScheduler.shared.submit(request)
         } catch {
-            // Intentionally ignored — see comment above.
+
         }
     }
 
     static let backgroundRefreshID = "com.naviai.app.automation.refresh"
 
-    /// BGTaskScheduler.register must be called exactly once per process.
     private static var backgroundRegistered = false
 
-    /// Called on ScenePhase .active: re-arm schedules after suspension.
     func restoreAfterBackground() {
         armTicker()
         for i in tasks.indices where tasks[i].status == .scheduled {
@@ -341,8 +291,6 @@ final class AutomationScheduler: ObservableObject {
         }
     }
 
-    /// Called on ScenePhase .background: persist everything the recovery flow
-    /// needs (item 11) — task state, current step, progress.
     func persistForBackground() {
         guard let runningID = engine.runningTaskID,
               let idx = tasks.firstIndex(where: { $0.id == runningID }) else {
@@ -356,12 +304,9 @@ final class AutomationScheduler: ObservableObject {
         AutomationPersistence.shared.saveTasks(tasks)
     }
 
-    /// Tasks waiting for the "Resume previous task?" prompt.
     var suspendedTasks: [AutomationTask] {
         tasks.filter { $0.status == .suspended && $0.pendingRunState != nil }
     }
-
-    // MARK: History
 
     var todayRuns: [AutomationRun] { Self.runs(in: history, from: Calendar.current.startOfDay(for: Date())) }
 
@@ -373,8 +318,8 @@ final class AutomationScheduler: ObservableObject {
     var last7DaysRuns: [AutomationRun] {
         let cal = Calendar.current
         let today = cal.startOfDay(for: Date())
-        let start = cal.date(byAdding: .day, value: -7, to: today)!      // 7 days ago
-        let end = cal.date(byAdding: .day, value: -1, to: today)!        // exclusive end = start of yesterday
+        let start = cal.date(byAdding: .day, value: -7, to: today)!
+        let end = cal.date(byAdding: .day, value: -1, to: today)!
         return Self.runs(in: history, from: start, to: end)
     }
 
@@ -394,13 +339,10 @@ final class AutomationScheduler: ObservableObject {
     }
 }
 
-// MARK: - Engine delegate
-
 extension AutomationScheduler: AutomationEngineDelegate {
 
     func engineDidStartRun(_ engine: AutomationEngine, task: AutomationTask, runID: UUID) {
-        // Nothing needed; the run record is created on completion. Step log
-        // entries flow through didLog.
+
     }
 
     func engine(_ engine: AutomationEngine, task: AutomationTask, runID: UUID,
@@ -428,8 +370,6 @@ extension AutomationScheduler: AutomationEngineDelegate {
                 didFinishWith status: AutomationTaskStatus, stepsExecuted: Int, result: String, error: String?, confirmations: [String]) {
         guard let idx = tasks.firstIndex(where: { $0.id == task.id }) else { return }
 
-        // The user paused this task mid-run: honour that instead of the
-        // engine's internal "cancelled" outcome.
         if pausingTaskIDs.remove(task.id) != nil {
             tasks[idx].status = .paused
             tasks[idx].updatedAt = Date()
@@ -476,8 +416,7 @@ extension AutomationScheduler: AutomationEngineDelegate {
         case .failed:
             let retries = tasks[idx].retryPolicy.maxRetries
             if retries > 0 {
-                // Simple retry bookkeeping: decrement remaining retries by
-                // re-scheduling; the policy is refreshed on restart/update.
+
                 tasks[idx].status = .scheduled
                 tasks[idx].retryPolicy.maxRetries = retries - 1
                 tasks[idx].nextRun = now.addingTimeInterval(max(5, tasks[idx].retryPolicy.retryDelaySeconds))
@@ -492,8 +431,6 @@ extension AutomationScheduler: AutomationEngineDelegate {
         }
         AutomationPersistence.shared.saveTasks(tasks)
     }
-
-    // MARK: Confirmation answer (called from UI)
 
     func answerConfirmation(_ granted: Bool) {
         confirmationContinuation?.resume(returning: granted)

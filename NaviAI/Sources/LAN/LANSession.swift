@@ -1,10 +1,6 @@
 import Foundation
 import Combine
 
-// MARK: - Persisted session token
-
-/// A revocable LAN session. Only the token *hash* is persisted; the raw token
-/// lives in the client and in the in-memory registry.
 struct StoredLANToken: Codable, Equatable {
     var tokenHash: String
     var deviceID: UUID
@@ -13,10 +9,6 @@ struct StoredLANToken: Codable, Equatable {
     var lastSeen: Date
 }
 
-// MARK: - Connected LAN session
-
-/// One live client connection. Identity is persistent: a returning client that
-/// reconnects with the same token resumes the same session (no re-pairing).
 @MainActor
 final class LANSession: ObservableObject, Identifiable {
 
@@ -46,10 +38,6 @@ final class LANSession: ObservableObject, Identifiable {
     }
 }
 
-// MARK: - Device registry (paired + online)
-
-/// Registry of paired devices and their online/offline presence. Persisted so
-/// a temporary disconnect is never a re-pairing event.
 @MainActor
 final class LANDeviceRegistry: ObservableObject {
 
@@ -70,7 +58,6 @@ final class LANDeviceRegistry: ObservableObject {
         }
     }
 
-    /// Upsert a token record (existing device updated, new device added).
     @discardableResult
     func register(token: String, deviceName: String, platform: String = "web") -> StoredLANToken {
         let deviceID = UUID()
@@ -103,15 +90,14 @@ final class LANDeviceRegistry: ObservableObject {
         devices.first { $0.tokenHash == hash }
     }
 
-    /// True when the token is known and inside its validity window.
     func isValid(token: String) -> Bool {
         guard LANSecurity.isValidToken(token) else { return false }
         let hash = LANSecurity.hash(token)
         guard let record = find(hash: hash) else {
-            // Unknown token — reject (no replay of old tokens after revoke).
+
             return false
         }
-        // Sessions do not expire on their own; revocation is explicit.
+
         return record.tokenHash == hash
     }
 

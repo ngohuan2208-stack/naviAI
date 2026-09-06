@@ -1,7 +1,5 @@
 import SwiftUI
 
-// MARK: - Code Lab Panel
-
 struct CodeLabView: View {
     @ObservedObject var store: CodeLabStore
     @State private var showHistory = false
@@ -127,6 +125,12 @@ struct CodeOutputView: View {
                             .foregroundStyle(.tertiary)
                     }
                 }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding()
+        }
+    }
+}
 
 struct CodeLabHistoryView: View {
     @ObservedObject var store: CodeLabStore
@@ -201,12 +205,6 @@ struct CodeLabHistoryView: View {
                     Button("Clear All") { store.clearHistory() }
                         .disabled(store.history.isEmpty)
                 }
-            }
-        }
-    }
-}
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding()
             }
         }
     }

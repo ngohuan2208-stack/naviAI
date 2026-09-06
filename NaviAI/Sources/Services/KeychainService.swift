@@ -1,8 +1,6 @@
 import Foundation
 import Security
 
-/// Thin wrapper around the iOS Keychain used for API keys.
-/// Keys are never stored in UserDefaults or written into source.
 enum KeychainService {
     private static let serviceName = "com.naviai.app.keys"
     private static let accessGroup: String? = nil
@@ -14,7 +12,7 @@ enum KeychainService {
             kSecAttrService as String: serviceName,
             kSecAttrAccount as String: account
         ]
-        // Delete existing then add (simple upsert).
+
         SecItemDelete(baseQuery as CFDictionary)
 
         var query = baseQuery

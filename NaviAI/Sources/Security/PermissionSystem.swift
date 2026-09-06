@@ -1,11 +1,6 @@
 import Foundation
 import Combine
 
-// MARK: - Tool permission
-
-/// Atomic permission a tool/agent needs before performing an action.
-/// Risky permissions (financial, destructive, external) always demand an
-/// explicit user confirmation unless the policy or granted-set says otherwise.
 enum ToolPermission: String, Codable, CaseIterable, Identifiable {
     case readWeb, click, type, navigate, select, scroll, focus, wait, extract
     case download, screenshot, readFile, writeFile, imageGenerate, search
@@ -87,10 +82,6 @@ enum ToolPermission: String, Codable, CaseIterable, Identifiable {
     }
 }
 
-// MARK: - Permission system
-
-/// Single funnel for every permission check. Also drives the in-app
-/// confirmation dialog (purely functional, matches the existing prompt style).
 @MainActor
 final class PermissionSystem: ObservableObject {
 
@@ -126,8 +117,6 @@ final class PermissionSystem: ObservableObject {
         granted.contains(permission)
     }
 
-    /// Authorize a permission. Returns `true` when allowed, `false` when
-    /// denied. Complies with the policy and never bypasses a user decision.
     func authorize(_ permission: ToolPermission, detail: String = "") async -> Bool {
         if granted.contains(permission) { return true }
         switch policy {
@@ -138,7 +127,7 @@ final class PermissionSystem: ObservableObject {
             return !permission.isRisky
         case .ask:
             if !permission.isRisky {
-                // Safe, never-blocking reads run freely under the default policy.
+
                 granted.insert(permission)
                 return true
             }
@@ -156,14 +145,12 @@ final class PermissionSystem: ObservableObject {
     }
 }
 
-// MARK: - Policy
-
 enum PermissionPolicy: String, Codable, CaseIterable, Identifiable {
-    /// Grant freely (safe) without asking.
+
     case allow
-    /// Ask the user for anything not already granted.
+
     case ask
-    /// Never ask: safe actions run, risky ones are denied/skipped.
+
     case skip
 
     var id: String { rawValue }

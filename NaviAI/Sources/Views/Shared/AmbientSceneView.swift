@@ -1,18 +1,11 @@
 import SwiftUI
 
-// MARK: - Ambient scene: waterfall backdrop + drifting birds
-//
-// A single reusable "living background" for the app's calmer surfaces
-// (Welcome, empty chat state). It reads as a quiet waterfall behind soft
-// mist, with a couple of birds drifting across on a slow loop, and settles
-// into stillness when the environment prefers reduced motion.
-
 struct AmbientSceneView: View {
     var intensity: Intensity = .full
 
     enum Intensity {
-        case full        // Welcome screen: full waterfall + birds
-        case whisper      // Chat/browser: faint wash, birds only, no ribbons
+        case full
+        case whisper
     }
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -49,8 +42,6 @@ struct AmbientSceneView: View {
         )
     }
 
-    /// Three loosely-spaced ribbons of light sliding downward, each built
-    /// from short dashes so it reads as falling water rather than a bar.
     private func drawFalls(_ gfx: inout GraphicsContext, size: CGSize, time: TimeInterval) {
         let laneCount = 3
         let laneWidth = size.width / CGFloat(laneCount + 1)
@@ -78,7 +69,6 @@ struct AmbientSceneView: View {
             }
         }
 
-        // Soft mist glow where the falls would meet a pool, near the bottom.
         let mistRect = CGRect(x: 0, y: size.height - 70, width: size.width, height: 70)
         gfx.fill(
             Path(ellipseIn: mistRect.insetBy(dx: -size.width * 0.2, dy: 0)),
@@ -95,8 +85,6 @@ struct AmbientSceneView: View {
         CGFloat(sin(time * 0.4 + Double(lane) * 2.1))
     }
 }
-
-// MARK: - Drifting birds
 
 private struct BirdFlockView: View {
     var whisper: Bool
@@ -157,7 +145,6 @@ private struct DriftingBird: View {
     }
 }
 
-/// A simple two-stroke "M" bird, wings flapping between up and flat.
 private struct BirdShape: Shape {
     var wingUp: Bool
 
@@ -181,12 +168,6 @@ private struct BirdShape: Shape {
         return path
     }
 }
-
-// MARK: - iOS 16-safe "pulse while active" effect
-//
-// SwiftUI's `.symbolEffect` needs iOS 17+, but this project targets iOS 16,
-// so active/running indicators use this instead: a gentle opacity + scale
-// breathing animation that starts and stops with `isActive`.
 
 private struct PulseWhenActiveModifier: ViewModifier {
     var isActive: Bool
@@ -213,17 +194,12 @@ private struct PulseWhenActiveModifier: ViewModifier {
 }
 
 extension View {
-    /// A small looping breathe effect for icons that represent "in progress"
-    /// state (e.g. the agent status glyph, the waveform icon).
+
     func pulsingWhileActive(_ isActive: Bool) -> some View {
         modifier(PulseWhenActiveModifier(isActive: isActive))
     }
 }
 
-// MARK: - Rotating Vietnamese greeting
-
-/// Cycles through a short list of warm, casual greetings. Height is fixed
-/// to the tallest line so surrounding layout never jumps.
 struct RotatingGreetingView: View {
     static let defaultGreetings = [
         "Bạn muốn làm gì hôm nay?",

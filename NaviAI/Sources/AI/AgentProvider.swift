@@ -1,9 +1,6 @@
 import Foundation
 import Combine
 
-// MARK: - Agent message
-
-/// One message in an agent session.
 struct AgentMessage: Codable, Identifiable, Equatable {
     var id: UUID = UUID()
     var role: AgentRole
@@ -15,25 +12,17 @@ struct AgentMessage: Codable, Identifiable, Equatable {
     }
 }
 
-// MARK: - Agent tool (sandboxed)
-
-/// A single tool an external coding agent may call, gated by the permission
-/// system. Resource limits + scope are enforced before any effect.
 struct AgentTool {
     let name: String
     let permission: ToolPermission
     let description: String
-    /// Maximum safe result length the tool may return (prevents token blow-up).
+
     let maxResultChars: Int
 
-    /// Whether running this tool needs a terminal / file system. If true it is
-    /// refused unless explicitly granted (sandboxed, never by default).
     var needsHostPrivileges: Bool {
         permission == .writeFile || name == "run_command" || name == "edit_file"
     }
 }
-
-// MARK: - Agent task
 
 struct AgentTask: Codable, Identifiable, Equatable {
     var id: UUID = UUID()
@@ -49,24 +38,17 @@ struct AgentTask: Codable, Identifiable, Equatable {
     }
 }
 
-// MARK: - Provider abstraction
-
-/// A coding / agent integration (Cline, OpenClaw, Claude-Code-compatible API,
-/// or a remote agent endpoint). The app never embeds an external program — it
-/// talks to these through a stable, configurable interface.
 protocol AgentProviding {
     var id: String { get }
     var label: String { get }
-    /// Supported tools this integration can use (gated by PermissionSystem).
+
     var tools: [AgentTool] { get }
-    /// Whether this integration works over a network API.
+
     var isRemote: Bool { get }
 
     func send(_ message: AgentMessage, in session: inout AgentSession) async throws -> AgentMessage
     func cancel()
 }
-
-// MARK: - Agent session
 
 struct AgentSession {
     var id: UUID = UUID()
@@ -75,11 +57,6 @@ struct AgentSession {
     var created: Date = Date()
 }
 
-// MARK: - Concrete remote provider
-
-/// A remote-agent provider backed by an OpenAI-compatible `/chat/completions`
-/// endpoint (Cline / OpenClaw / Claude-Code-compatible gateways that expose a
-/// chat API often do). Real and configurable; keys stay in the Keychain.
 @MainActor
 final class RemoteAgentProvider: AgentProviding {
 
@@ -145,10 +122,7 @@ final class RemoteAgentProvider: AgentProviding {
         return c.isConfigured ? c : nil
     }
 }
-// MARK: - Provider manager
 
-/// Lists and selects agent integrations. Reads/writes a small UserDefaults
-/// record of configured endpoints (keys stay in the Keychain).
 @MainActor
 final class AgentProviderManager: ObservableObject {
 
@@ -156,7 +130,7 @@ final class AgentProviderManager: ObservableObject {
 
     struct AgentProviderConfig: Codable, Identifiable, Equatable {
         var id = UUID()
-        var kind: String          // "remote"
+        var kind: String
         var name: String
         var endpoint: String
         var model: String
@@ -216,7 +190,6 @@ final class AgentProviderManager: ObservableObject {
         KeychainService.read(account: cfg.apiKeyAccount)?.isEmpty == false
     }
 
-    /// Build a live provider for a config (provider-agnostic dispatch).
     func makeProvider(from config: AgentProviderConfig) -> AgentProviding {
         RemoteAgentProvider(id: config.id.uuidString,
                             label: config.name,
@@ -231,10 +204,6 @@ final class AgentProviderManager: ObservableObject {
         }
     }
 
-    // MARK: Sandboxed execution gate
-
-    /// Decide whether a requested host-privileged tool is allowed given the
-    /// user's explicit grant (default: denied). Never grants silently.
     func sandboxAllows(_ tool: AgentTool, via permissions: PermissionSystem) async -> Bool {
         guard tool.needsHostPrivileges else { return true }
         return await permissions.authorize(tool.permission, detail: "Sandboxed " + tool.name)

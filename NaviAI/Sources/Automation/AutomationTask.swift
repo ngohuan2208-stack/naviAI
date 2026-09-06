@@ -1,11 +1,5 @@
 import Foundation
 
-// MARK: - Automation task model
-
-/// A single automation step. Steps are executed in order by the
-/// `AutomationEngine`. Browser-backed steps reuse the very same tool
-/// implementations the interactive agent uses (click / type / scroll / read),
-/// so automation behaves exactly like the human-like agent interaction.
 enum AutomationStepKind: String, Codable, CaseIterable, Identifiable {
     case navigate
     case search
@@ -50,7 +44,6 @@ enum AutomationStepKind: String, Codable, CaseIterable, Identifiable {
         }
     }
 
-    /// The agent tool backing this step (nil for non-browser steps).
     var toolName: String? {
         switch self {
         case .navigate: return "openURL"
@@ -64,17 +57,14 @@ enum AutomationStepKind: String, Codable, CaseIterable, Identifiable {
     }
 }
 
-/// One executable step of an automation task.
 struct AutomationStep: Codable, Identifiable, Equatable {
     var id: UUID = UUID()
     var kind: AutomationStepKind
-    /// navigate: full URL · search: query · typeText: text · askLLM: prompt ·
-    /// notify: message · clickElement/typeText: element text hint used by the
-    /// element finder · scroll: direction (up/down/top/bottom) · wait: seconds.
+
     var value: String = ""
-    /// Optional numeric argument (scroll amount px, wait seconds, max chars).
+
     var amount: Int?
-    /// Step note shown in the timeline / details screen.
+
     var note: String = ""
 
     var summary: String {
@@ -93,9 +83,6 @@ struct AutomationStep: Codable, Identifiable, Equatable {
     }
 }
 
-// MARK: - Scheduling
-
-/// How and when a task runs.
 struct AutomationSchedule: Codable, Equatable {
     enum Kind: String, Codable, CaseIterable, Identifiable {
         case runOnce
@@ -111,18 +98,16 @@ struct AutomationSchedule: Codable, Equatable {
     }
 
     var kind: Kind = .runOnce
-    /// Repeat interval in seconds (every X minutes/hours/days).
+
     var intervalSeconds: TimeInterval = 600
-    /// Delay for a run-once task, in seconds from scheduling.
+
     var delaySeconds: TimeInterval = 10
-    /// Optional inclusive daily window ("HH:mm"). The task only fires inside
-    /// [startTime, endTime] on each day.
+
     var startTime: String? = nil
     var endTime: String? = nil
-    /// Maximum number of runs. nil/0 with no other bound is rejected at save
-    /// time so a repeating task can never run unbounded.
+
     var maxRuns: Int? = nil
-    /// Hard stop for a repeating task.
+
     var endDate: Date? = nil
 
     static let presetIntervals: [TimeInterval] = [10, 30, 60, 300, 600, 1800, 3600]
@@ -142,7 +127,6 @@ struct AutomationSchedule: Codable, Equatable {
         return "in \(s / 3600) h"
     }
 
-    /// Parses "HH:mm" into (hour, minute); nil when absent/invalid.
     static func parseClock(_ text: String?) -> (h: Int, m: Int)? {
         guard let text, !text.isEmpty else { return nil }
         let parts = text.split(separator: ":").compactMap { Int($0) }
@@ -151,27 +135,21 @@ struct AutomationSchedule: Codable, Equatable {
     }
 }
 
-// MARK: - Retry & confirmation
-
 struct RetryPolicy: Codable, Equatable {
-    /// How many times a failed run is retried automatically (0 = never).
+
     var maxRetries: Int = 0
-    /// Delay between retries in seconds.
+
     var retryDelaySeconds: TimeInterval = 30
 
     static let none = RetryPolicy()
 }
 
-/// Confirmation policy for automated (and interactive) actions.
 enum ConfirmationPolicy: String, Codable, CaseIterable, Identifiable {
-    /// Ask before every action.
+
     case always
-    /// Ask only for risky actions (submit, purchase, delete, send message,
-    /// financial actions, account changes). Safe reads/clicks run freely.
+
     case riskyActions
-    /// Never ask — safe actions run freely and risky ones are SKIPPED, not
-    /// silently performed. Automation never performs a risky action without
-    /// an explicit confirmation, by design.
+
     case never
 
     var id: String { rawValue }
@@ -184,8 +162,6 @@ enum ConfirmationPolicy: String, Codable, CaseIterable, Identifiable {
         }
     }
 }
-
-// MARK: - Status
 
 enum AutomationTaskStatus: String, Codable {
     case scheduled
@@ -228,9 +204,6 @@ enum AutomationTaskStatus: String, Codable {
     }
 }
 
-// MARK: - Task
-
-/// A named, multi-step, schedulable browser automation.
 struct AutomationTask: Codable, Identifiable, Equatable {
     var id: UUID = UUID()
     var name: String
@@ -248,8 +221,6 @@ struct AutomationTask: Codable, Identifiable, Equatable {
     var nextRun: Date? = nil
     var runCount: Int = 0
 
-    /// Set when the app was suspended/terminated mid-run; the UI offers
-    /// "Resume previous task?" on the next launch.
     var pendingRunState: PendingRunState? = nil
 
     struct PendingRunState: Codable, Equatable {
@@ -268,9 +239,6 @@ struct AutomationTask: Codable, Identifiable, Equatable {
     }
 }
 
-// MARK: - Run history
-
-/// One recorded execution of an automation task.
 struct AutomationRun: Codable, Identifiable, Equatable {
     var id: UUID = UUID()
     var taskID: UUID

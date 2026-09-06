@@ -1,10 +1,5 @@
 import Foundation
 
-// MARK: - LAN Diagnostics
-
-/// A compact, anonymous diagnostics snapshot shown in the app and available to
-/// diagnostics views. Never contains tokens, keys, URLs of private tabs or any
-/// user credentials.
 @MainActor
 enum LANDiagnostics {
 

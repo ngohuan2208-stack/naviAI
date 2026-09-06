@@ -1,11 +1,6 @@
 import SwiftUI
 import UniformTypeIdentifiers
 
-// MARK: - Browser Data import / export
-
-/// Settings pane for importing browser data from Safari exports and exporting
-/// Navi data. Uses the system document picker — the app never touches
-/// Safari's private databases itself.
 struct BrowserDataSettingsView: View {
     @EnvironmentObject private var app: AppModel
     @State private var showImporter = false
@@ -112,9 +107,6 @@ struct BrowserDataSettingsView: View {
     }
 }
 
-// MARK: - Export document wrapper
-
-/// FileDocument wrapper so SwiftUI's fileExporter can write our JSON.
 struct ExportDocument: FileDocument {
     static let readableContentTypes: [UTType] = [.json]
     var data: Data?

@@ -1,10 +1,6 @@
 import Foundation
 
-/// Stateless networking against AI providers. Speaks OpenAI chat-completions
-/// and Anthropic Messages formats and normalizes both to `ProviderReply`.
 final class LLMService {
-
-    // MARK: - Main entry point
 
     func complete(
         config: ProviderConfig,
@@ -54,8 +50,6 @@ final class LLMService {
         }
     }
 
-    // MARK: - Test connection
-
     func test(config: ProviderConfig, apiKey: String) async -> Result<String, AIError> {
         guard !config.model.isEmpty else { return .failure(.modelUnavailable) }
         guard !apiKey.isEmpty else { return .failure(.missingAPIKey) }
@@ -76,8 +70,6 @@ final class LLMService {
         }
     }
 
-    // MARK: - Endpoints
-
     static func endpoint(for config: ProviderConfig) -> URL? {
         var base = config.baseURL
         while base.hasSuffix("/") { base.removeLast() }
@@ -95,8 +87,6 @@ final class LLMService {
             return URL(string: path)
         }
     }
-
-    // MARK: - Body builders
 
     private static func buildOpenAIBody(model: String,
                                         history: [OutboundItem],
@@ -223,8 +213,6 @@ final class LLMService {
         return body
     }
 
-    // MARK: - Response decoding
-
     private func decode(_ data: Data, format: APIMessageFormat) throws -> ProviderReply {
         let json = try JSONSerialization.jsonObject(with: data) as? [String: Any]
         guard let json = json else {
@@ -303,7 +291,7 @@ final class LLMService {
             return .invalidAPIKey
         }
         if status == 404 {
-            // Anthropic returns 404 for unknown models too; keep modelUnavailable.
+
             return .modelUnavailable
         }
         let detailText = detail.isEmpty ? "HTTP \(status)" : "HTTP \(status): \(detail)"

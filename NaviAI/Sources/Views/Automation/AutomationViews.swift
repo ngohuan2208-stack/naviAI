@@ -1,7 +1,5 @@
 import SwiftUI
 
-// MARK: - Root automation screen
-
 struct AutomationRootView: View {
     @EnvironmentObject var app: AppModel
     @EnvironmentObject var automation: AutomationScheduler
@@ -65,8 +63,6 @@ struct AutomationRootView: View {
         .listStyle(.insetGrouped)
     }
 }
-
-// MARK: - Task card (status + next run + pause/stop)
 
 struct AutomationCard: View {
     @EnvironmentObject var automation: AutomationScheduler
@@ -161,8 +157,6 @@ struct AutomationCard: View {
         }
     }
 }
-
-// MARK: - Task details
 
 struct AutomationTaskDetailView: View {
     @EnvironmentObject var automation: AutomationScheduler
@@ -292,8 +286,6 @@ struct AutomationTaskDetailView: View {
     }
 }
 
-// MARK: - Automation history (Today / Yesterday / Last 7 days / Older)
-
 struct AutomationHistoryView: View {
     @EnvironmentObject var automation: AutomationScheduler
 
@@ -343,8 +335,6 @@ struct AutomationHistoryView: View {
         }
     }
 }
-
-// MARK: - Single run details (Goal / Actions / Timeline / Result / Errors)
 
 struct AutomationRunDetailView: View {
     @EnvironmentObject var automation: AutomationScheduler
@@ -399,8 +389,6 @@ struct AutomationRunDetailView: View {
     }
 }
 
-// MARK: - Agent activity log
-
 struct AgentActivityView: View {
     @EnvironmentObject var automation: AutomationScheduler
     @ObservedObject private var log = AgentActivityLog.shared
@@ -434,14 +422,10 @@ struct AgentActivityView: View {
     }
 }
 
-// MARK: - Overlays: confirmation alert + floating mini status card + resume prompt
-
-/// Hosted above the browser. Contains ONLY functional state the user must
-/// see - never decorative debug UI.
 struct AutomationOverlays: View {
     @EnvironmentObject var automation: AutomationScheduler
     @EnvironmentObject var engine: AutomationEngine
-    /// Whether the "Resume previous task?" prompt has been handled this session.
+
     @State private var resumeHandled = false
 
     var body: some View {
@@ -491,8 +475,6 @@ struct AutomationOverlays: View {
     }
 }
 
-/// Compact floating card: "AI Task Running / Searching... / Step 4 / 12" with
-/// Pause + Stop. Shown only while a task runs; auto-hides when idle.
 struct FloatingStatusCard: View {
     @EnvironmentObject var automation: AutomationScheduler
     @EnvironmentObject var engine: AutomationEngine

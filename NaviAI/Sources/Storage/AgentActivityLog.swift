@@ -1,11 +1,6 @@
 import Foundation
 import Combine
 
-// MARK: - Agent activity entry
-
-/// One timestamped line of what the agent did, e.g.
-/// "12:30:02 — Opened search page". Persisted (bounded) so the activity
-/// screen and per-run timelines survive relaunches.
 struct AgentActivityEntry: Codable, Identifiable, Equatable {
     var id: UUID = UUID()
     var date: Date
@@ -18,12 +13,6 @@ struct AgentActivityEntry: Codable, Identifiable, Equatable {
     }
 }
 
-// MARK: - Agent activity log
-
-/// Global, append-mostly log. IMPORTANT: never log API keys, provider
-/// configuration or other sensitive credentials — callers only pass human
-/// readable action descriptions, and the store strips anything that smells
-/// like a credential as a belt-and-braces measure.
 @MainActor
 final class AgentActivityLog: ObservableObject {
 
@@ -41,7 +30,7 @@ final class AgentActivityLog: ObservableObject {
 
     func add(_ message: String) {
         var clean = message
-        // Defense in depth: never persist credentials.
+
         for banned in ["sk-", "Bearer ", "x-api-key", "apiKey", "api_key", "password"] {
             if clean.localizedCaseInsensitiveContains(banned) {
                 clean = "(credential redacted)"

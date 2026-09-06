@@ -1,23 +1,15 @@
 import Foundation
 import UIKit
 
-// MARK: - Capabilities
-
-/// What an AI provider can do with images. Kept abstract so the app never
-/// hard-codes a provider.
 struct ImageCapabilities {
     let understandsImages: Bool
     let generatesImages: Bool
 }
 
-// MARK: - Understanding
-
 protocol ImageUnderstanding {
-    /// Analyse an image and return a text description / detected UI elements.
+
     func understand(imageData: Data, mimeType: String, prompt: String) async throws -> String
 }
-
-// MARK: - Generation
 
 struct GeneratedImage {
     var data: Data
@@ -40,19 +32,13 @@ protocol ImageGenerating {
     func generate(prompt: String, size: String?) async throws -> GeneratedImage
 }
 
-// MARK: - Pipeline
-
-/// Routes image tasks to the active provider, with graceful fallback when the
-/// provider lacks the capability or the request fails. The active provider is
-/// injected by the app (dependency injection) so this stays provider-agnostic.
 @MainActor
 final class ImagePipeline: ImageUnderstanding, ImageGenerating {
 
     static let shared = ImagePipeline()
 
-    /// Injected by AppModel: returns the current active provider config.
     var activeProvider: () -> ProviderConfig? = { nil }
-    /// Injected by AppModel: returns the Keychain key for a config.
+
     var apiKeyFor: (ProviderConfig) -> String? = { _ in nil }
 
     private let llm = LLMService()
@@ -60,13 +46,11 @@ final class ImagePipeline: ImageUnderstanding, ImageGenerating {
     private init() {}
 
     func capabilities(for config: ProviderConfig) -> ImageCapabilities {
-        // Official, documented capability flags only.
+
         let understands = config.supportsVision
         let generates = config.apiFormat == .openAI && !config.baseURL.isEmpty
         return ImageCapabilities(understandsImages: understands, generatesImages: generates)
     }
-
-    // MARK: Understanding (multimodal)
 
     func understand(imageData: Data, mimeType: String, prompt: String) async throws -> String {
         guard let config = activeProvider(), let key = apiKeyFor(config) else {
@@ -87,8 +71,6 @@ final class ImagePipeline: ImageUnderstanding, ImageGenerating {
         )
         return reply.text ?? ""
     }
-
-    // MARK: Generation
 
     func generate(prompt: String, size: String? = nil) async throws -> GeneratedImage {
         guard let config = activeProvider(), let key = apiKeyFor(config) else {
@@ -132,8 +114,6 @@ final class ImagePipeline: ImageUnderstanding, ImageGenerating {
         }
         throw ImageGenerationError.requestFailed("Image response had no usable data.")
     }
-
-    // MARK: Helpers
 
     static func generationURL(for config: ProviderConfig) -> URL? {
         var base = config.baseURL

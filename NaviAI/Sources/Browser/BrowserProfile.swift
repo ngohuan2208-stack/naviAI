@@ -1,11 +1,6 @@
 import Foundation
 import Combine
 
-// MARK: - Browser profile
-
-/// A Navi browser profile is a *profile*, not a fingerprinting or anti-detection
-/// device. It only organises Navi's own browsing data (bookmarks, history) and
-/// UI identity (name, avatar). It never spoofs device identity or fingerprints.
 struct BrowserProfile: Identifiable, Codable, Equatable {
     var id: UUID = UUID()
     var name: String = "Default"
@@ -18,10 +13,6 @@ struct BrowserProfile: Identifiable, Codable, Equatable {
     }
 }
 
-// MARK: - Browser profile store
-
-/// Persists the user's browser profiles. The first profile is created on first
-/// use so the app always has one.
 @MainActor
 final class BrowserProfileStore: ObservableObject {
 

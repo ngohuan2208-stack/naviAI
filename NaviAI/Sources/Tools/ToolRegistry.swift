@@ -1,8 +1,5 @@
 import Foundation
 
-// MARK: - Tool definition
-
-/// A validated, permission-aware description of an executable tool.
 struct ToolDefinition {
     let name: String
     let permission: ToolPermission
@@ -10,12 +7,6 @@ struct ToolDefinition {
     let required: [String]
 }
 
-// MARK: - Tool registry
-
-/// Unified catalog of every tool the model / agent / automation may call.
-/// The model never calls a tool directly — every call goes through here so it
-/// is (a) known, (b) schema-validated and (c) routed to the caller for a
-/// permission check before execution.
 @MainActor
 final class ToolRegistry {
 
@@ -27,7 +18,6 @@ final class ToolRegistry {
         registerDefaults()
     }
 
-    /// Register (or override) a tool definition.
     func register(_ definition: ToolDefinition) {
         definitions[definition.name] = definition
     }
@@ -38,7 +28,6 @@ final class ToolRegistry {
 
     var allNames: [String] { Array(definitions.keys).sorted() }
 
-    /// Validate a tool call: known name + all required arguments present.
     func validate(name: String, argumentsJSON: String) -> Result<ToolDefinition, String> {
         guard let def = definitions[name] else {
             return .failure("Unknown tool: \(name)")
@@ -54,8 +43,6 @@ final class ToolRegistry {
         return .success(def)
     }
 
-    /// Validate + authorize in one step (the funnel the browser uses).
-    /// Returns the definition when allowed; throws a user-safe message otherwise.
     func authorize(name: String, argumentsJSON: String, via permissions: PermissionSystem) async throws -> ToolDefinition {
         let def = try validate(name: name, argumentsJSON: argumentsJSON).get()
         let allowed = await permissions.authorize(def.permission, detail: def.description)

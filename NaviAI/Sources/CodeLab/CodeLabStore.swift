@@ -2,8 +2,6 @@ import Foundation
 import Combine
 import JavaScriptCore
 
-// MARK: - Data Models
-
 public enum CodeLanguage: String, Codable, CaseIterable, Identifiable {
     case javascript, python, swift, c
 
@@ -69,8 +67,6 @@ public struct CodeExecutionResult: Codable, Equatable {
     }
 }
 
-// MARK: - JavaScript Runner
-
 final class JavaScriptRunner {
     static let shared = JavaScriptRunner()
     private init() {}
@@ -112,8 +108,6 @@ final class JavaScriptRunner {
         return Result(stdout: output, stderr: errors, exitCode: errors.isEmpty ? 0 : 1, durationMs: duration)
     }
 }
-
-// MARK: - Store
 
 @MainActor
 final class CodeLabStore: ObservableObject {

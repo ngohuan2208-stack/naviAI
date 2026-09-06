@@ -1,8 +1,6 @@
 import Foundation
 import Combine
 
-// MARK: - Tab group
-
 struct TabGroup: Codable, Identifiable, Equatable {
     var id: UUID = UUID()
     var name: String
@@ -11,10 +9,6 @@ struct TabGroup: Codable, Identifiable, Equatable {
     var createdAt: Date = Date()
 }
 
-// MARK: - Tab group store
-
-/// Lightweight, persistent storage for tab groups and pinning. Pure data —
-/// the browser keeps its own `tabs` array; groups reference tab ids.
 @MainActor
 final class TabGroupStore: ObservableObject {
 
@@ -76,8 +70,6 @@ final class TabGroupStore: ObservableObject {
     }
 }
 
-// MARK: - Closed-tab stack (reopen last closed tab)
-
 @MainActor
 enum ClosedTabStack {
     private static var stack: [(url: URL?, title: String)] = []
@@ -96,11 +88,8 @@ enum ClosedTabStack {
     }
 }
 
-// MARK: - BrowserStore tab ops extension
-
 extension BrowserStore {
 
-    /// Reopen the most recently closed tab (works across the session).
     @discardableResult
     func reopenClosedTab() -> TabItem? {
         guard let closed = ClosedTabStack.pop() else { return nil }
@@ -109,7 +98,6 @@ extension BrowserStore {
         return tab
     }
 
-    /// Search across open tabs by title or URL.
     func searchTabs(_ query: String) -> [TabItem] {
         let q = query.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
         guard !q.isEmpty else { return tabs }
@@ -120,7 +108,6 @@ extension BrowserStore {
         }
     }
 
-    /// Open a new tab in a given tab group (registers it in the group).
     func openTabInGroup(_ group: TabGroup, url: URL?) {
         let tab = newTab(url: url, activate: true)
         TabGroupStore.shared.addTab(tab.id, to: group.id)

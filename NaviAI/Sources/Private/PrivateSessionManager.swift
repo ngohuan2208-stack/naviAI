@@ -1,13 +1,6 @@
 import Foundation
 import Combine
 
-// MARK: - Private tab manager
-
-/// Tracks private tabs. Real cookie / storage isolation is provided by the
-/// WebKit layer (each private tab uses a non-persistent `WKWebsiteDataStore`),
-/// so closing the session discards cookies and local storage. NaviAI never
-/// claims absolute anonymity — it respects the limits of iOS / WebKit and the
-/// websites being visited.
 @MainActor
 final class PrivateSessionManager: ObservableObject {
 
@@ -22,7 +15,6 @@ final class PrivateSessionManager: ObservableObject {
 
     @Published private(set) var tabs: [PrivateTabRecord] = []
 
-    /// Whether new tabs should be private by default (session-level toggle).
     @Published var privateByDefault = false {
         didSet {
             UserDefaults.standard.set(privateByDefault, forKey: Self.key)
@@ -54,8 +46,6 @@ final class PrivateSessionManager: ObservableObject {
         tabs.removeAll { $0.tabID == tabID }
     }
 
-    /// Close all private tabs. Their non-persistent WebKit stores are
-    /// deallocated with the tabs, discarding cookies/localStorage immediately.
     func clearAll(browser: BrowserStore) {
         let ids = tabs.map { $0.tabID }
         for id in ids {

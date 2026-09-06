@@ -11,11 +11,7 @@ enum AgentToolError: LocalizedError {
     }
 }
 
-// MARK: - Tool execution
-
 extension BrowserStore {
-
-    // MARK: Evaluation plumbing
 
     func agentEvaluate(_ expr: String) async throws -> Any? {
         guard let coordinator = activeCoordinator else {
@@ -64,20 +60,16 @@ extension BrowserStore {
         (args[key] as? NSNumber)?.intValue ?? (args[key] as? Int)
     }
 
-    // MARK: Dispatcher
-
     func executeTool(named name: String, argumentsJSON: String) async -> String {
         let args = arguments(from: argumentsJSON)
-        // Hard safety net for View mode: even if a stale/extra tool call slips
-        // through the filtered tool list, interaction tools are refused here.
+
         if !agentMode.permitsInteraction {
             let readOnly = ["readPage", "findText", "capture_web_screenshot"]
             if !readOnly.contains(name) {
                 return "Blocked: View mode is read-only. Switch to Interact or Auto mode to perform this action."
             }
         }
-        // Unified funnel: every tool call is validated against the registry
-        // before execution, and risky capabilities are permission-gated.
+
         if case .failure(let message) = ToolRegistry.shared.validate(name: name, argumentsJSON: argumentsJSON) {
             return "Invalid tool call: \(message)"
         }
@@ -142,8 +134,6 @@ extension BrowserStore {
         }
     }
 
-    // MARK: Individual tools
-
     private func afterLoadSummary() async -> String {
         guard let tab = activeTab else { return "No active tab." }
         let title = tab.webView.title ?? tab.title
@@ -189,8 +179,6 @@ extension BrowserStore {
         do {
             var snap = try await fetchSnapshot(maxItems: 60)
 
-            // DOM-first: only when the DOM offers nothing actionable do we ask a
-            // vision model to describe the screen (optional, opt-in).
             if snap.items.isEmpty, !snap.bodyText.isEmpty, isVisionFallbackAvailable {
                 let targets = await detectVisionClickables(viewportWidth: snap.viewportWidth,
                                                            viewportHeight: snap.viewportHeight)
@@ -265,8 +253,7 @@ extension BrowserStore {
         guard activeCoordinator != nil else { return "No active tab." }
         agentStatus = .clicking
         do {
-            // Vision-fallback elements (negative ids) do not exist in the DOM;
-            // their coordinates were stored when the snapshot was enriched.
+
             let located: DOMClickResult
             if id < 0 {
                 guard let pt = visionClickables[id] else {
@@ -303,7 +290,7 @@ extension BrowserStore {
             let cx = located.atX ?? item.rect.centerX
             let cy = located.atY ?? item.rect.centerY
             let point = CGPoint(x: cx, y: cy)
-            // Natural pacing: never rapid-fire clicks.
+
             await InteractionEngine.shared.pauseBetweenActions()
             await moveAICursor(to: point, label: "AI clicking…")
             await tapPulse(at: point)
@@ -316,8 +303,6 @@ extension BrowserStore {
                 return clickResult.error ?? "Click on element \(id) failed."
             }
 
-            // Wait for any navigation the click may have started, then for
-            // dynamic content to finish mutating (natural render wait).
             try? await Task.sleep(nanoseconds: 700_000_000)
             if activeTab?.webView.isLoading == true {
                 _ = await waitForPageSettle(timeout: 30)
@@ -328,8 +313,6 @@ extension BrowserStore {
             let clickedText = item.text.isEmpty ? "<\(item.tag)>" : item.text
             AgentActivityLog.shared.add("Clicked " + clickedText)
 
-            // Natural pacing: brief beat for any navigation the click may
-            // have started, then wait for the page to settle.
             InteractionEngine.shared.markAction()
             try? await Task.sleep(nanoseconds: UInt64(InteractionEngine.shared.postClickDelay * 1_000_000_000))
             if activeTab?.webView.isLoading == true {
@@ -374,8 +357,7 @@ extension BrowserStore {
             let cx = located.atX ?? item.rect.centerX
             let cy = located.atY ?? item.rect.centerY
             let point = CGPoint(x: cx, y: cy)
-            // Natural flow: pace -> move cursor -> tap the field (focus) ->
-            // settle -> type in human-sized chunks with micro pauses.
+
             await InteractionEngine.shared.pauseBetweenActions()
             await moveAICursor(to: point, label: "AI typing…")
             await tapPulse(at: point)
@@ -407,8 +389,6 @@ extension BrowserStore {
                 return summary
             }
 
-            // Chunked natural typing: first chunk replaces, the rest append,
-            // mimicking a person typing in bursts instead of one giant paste.
             var totalLen = 0
             var submitted = false
             for (i, chunk) in chunks.enumerated() {
@@ -543,8 +523,6 @@ extension BrowserStore {
         return "Closed tab \(idx) (\(title))."
     }
 
-    // MARK: Risk / confirmation heuristics
-
     private func riskReason(for item: DOMItemInfo, typing: Bool, pressEnter: Bool = false) -> String? {
         guard settings.aiConfirmationEnabled else { return nil }
         let combined = [item.text, item.placeholder, item.aria, item.name]
@@ -574,10 +552,6 @@ extension BrowserStore {
         return nil
     }
 
-    // MARK: Image generation (multimodal)
-
-    /// Generates an image with the active provider (OpenAI-compatible images
-    /// endpoint). Never fakes success: failures surface real provider errors.
     private func toolCaptureWebScreenshot() async -> String {
         guard let tab = activeTab else { return "No active tab to capture." }
         let shot = await WebScreenshotManager.shared.capture(
@@ -634,8 +608,6 @@ extension BrowserStore {
     }
 }
 
-// MARK: - Page load wait + cursor animation
-
 extension BrowserStore {
     func waitForPageSettle(timeout: TimeInterval = 25) async -> Bool {
         let deadline = Date().addingTimeInterval(timeout)
@@ -685,7 +657,7 @@ extension BrowserStore {
         guard settings.aiCursorEnabled else { return }
         cursor.visible = true
         cursor.position = point
-        // Press down, then release -> physical click feel for the mascot.
+
         cursor.isPressing = true
         cursor.pulseID += 1
         try? await Task.sleep(nanoseconds: 120_000_000)

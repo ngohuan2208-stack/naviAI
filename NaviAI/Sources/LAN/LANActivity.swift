@@ -1,9 +1,6 @@
 import Foundation
 import Combine
 
-// MARK: - Activity models
-
-/// A single activity feed line shown on iPhone + every LAN client.
 struct ActivityFeedItem: Codable, Identifiable, Equatable {
     var id: UUID = UUID()
     var date: Date = Date()
@@ -26,18 +23,16 @@ struct ActivityFeedItem: Codable, Identifiable, Equatable {
     }
 }
 
-/// The current task card shown in the Activity Center.
 struct ActiveTaskCard: Codable, Equatable {
     var title: String = ""
     var continuation: String = ""
     var mode: String = ""
     var isRunning: Bool = false
     var currentStep: String = ""
-    var progress: Int = 0          // 0...100
+    var progress: Int = 0
     var completedSteps: Int = 0
     var totalSteps: Int = 0
 
-    /// JSON-safe projection for the LAN remote UI.
     func toRemoteJSON() -> [String: Any] {
         [
             "title": title,
@@ -52,12 +47,6 @@ struct ActiveTaskCard: Codable, Equatable {
     }
 }
 
-// MARK: - Realtime Activity Center
-
-/// Single source of truth for live activity. Consumed by:
-///  • the iPhone Activity Center UI,
-///  • the LAN WebSocket broadcast (all paired clients),
-///  • the diagnostics view.
 @MainActor
 final class LANActivityCenter: ObservableObject {
 
@@ -69,8 +58,6 @@ final class LANActivityCenter: ObservableObject {
     private let maxFeed = 300
 
     private init() {}
-
-    // MARK: Task lifecycle
 
     func taskStarted(title: String, continuation: String, mode: String) {
         currentTask = ActiveTaskCard(title: title,
@@ -116,13 +103,10 @@ final class LANActivityCenter: ObservableObject {
         objectWillChange.send()
     }
 
-    // MARK: Feed
-
     func addFeed(_ message: String) {
         add(message: message, kind: .info)
     }
 
-    /// Public add with a kind (used by agent loop + automation hooks).
     func add(message: String, kind: ActivityFeedItem.ActivityKind = .info) {
         var clean = message
         for banned in ["sk-", "Bearer ", "x-api-key", "apiKey", "api_key", "password"] {

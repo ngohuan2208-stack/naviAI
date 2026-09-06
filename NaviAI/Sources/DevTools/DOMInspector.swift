@@ -1,11 +1,6 @@
 import Foundation
 import WebKit
 
-// MARK: - Inspected element model
-
-/// Everything captured when the user taps an element in "Select Element" mode.
-/// Text and attributes are truncated/redacted by the page script; nothing
-/// sensitive is persisted anywhere.
 struct ElementInspection: Codable, Equatable, Identifiable {
     var id: UUID = UUID()
     var tag: String
@@ -18,7 +13,6 @@ struct ElementInspection: Codable, Equatable, Identifiable {
     var selector: String
     var boundingBox: String
 
-    /// Human-friendly one-liner, e.g. `<button#submit.submit>`.
     var displayLabel: String {
         var s = tag
         if let idAttribute, !idAttribute.isEmpty { s += "#\(idAttribute)" }
@@ -27,10 +21,6 @@ struct ElementInspection: Codable, Equatable, Identifiable {
     }
 }
 
-// MARK: - DOM inspector bridge
-
-/// Runs inspection JavaScript in the page and feeds results to DevToolsStore.
-/// Uses ONLY public WKWebView APIs (evaluateJavaScript) — no private selectors.
 @MainActor
 final class DOMInspector {
 
@@ -41,10 +31,6 @@ final class DOMInspector {
         self.store = store
     }
 
-    // MARK: Public API
-
-    /// Collects a flattened, size-limited summary of interactive + structural
-    /// elements. Cheap enough to run on demand from the inspector UI.
     func refreshDOM() async {
         let raw = try? await coordinator?.evaluate(domSummaryScript)
         guard let value = raw ?? nil, let json = value as? String,
@@ -63,7 +49,6 @@ final class DOMInspector {
         store.setDOMSummaries(summaries)
     }
 
-    /// Fetch localStorage + sessionStorage (values redacted by the store).
     func refreshStorage() async {
         let raw = try? await coordinator?.evaluate(storageScript)
         guard let value = raw ?? nil, let json = value as? String,
@@ -73,7 +58,6 @@ final class DOMInspector {
                          session: Self.pairs(from: obj["session"]))
     }
 
-    /// Cookie count via document.cookie (length-aware, no values kept).
     func refreshCookies() async {
         let raw = try? await coordinator?.evaluate("document.cookie")
         guard let value = raw ?? nil else {
@@ -85,7 +69,6 @@ final class DOMInspector {
         store.setCookies(count: count)
     }
 
-    /// Highlight elements containing `text`; returns how many were outlined.
     @discardableResult
     func highlight(matchingText text: String) async -> Int {
         let raw = try? await coordinator?.evaluate(highlightScript(text: text))
@@ -93,12 +76,6 @@ final class DOMInspector {
         return value as? Int ?? 0
     }
 
-    // MARK: - Select Element mode (tap-in-page inspector)
-
-    /// Turns on the in-page "tap an element to inspect" overlay. The user taps
-    /// the live page; the tapped element is highlighted and its details are
-    /// stored on `window.__naviPicked` for `readSelectedElement()` to retrieve.
-    /// Uses only public `evaluateJavaScript`. Returns false if injection failed.
     @discardableResult
     func beginElementSelection() async -> Bool {
         guard let raw = try? await coordinator?.evaluate(selectModeStartScript),
@@ -106,14 +83,11 @@ final class DOMInspector {
         return (value as? String) == "started"
     }
 
-    /// Removes the Select Element overlay and stops capturing taps.
     func cancelElementSelection() async {
         _ = try? await coordinator?.evaluate(selectModeStopScript)
         store.setInspectedElement(nil)
     }
 
-    /// Reads the element the user last picked and exposes it to the store.
-    /// Also clears the in-page pick so the same tap is not re-read twice.
     func readSelectedElement() async -> ElementInspection? {
         let raw = try? await coordinator?.evaluate(readPickScript)
         guard let value = raw ?? nil, let json = value as? String,
@@ -126,8 +100,6 @@ final class DOMInspector {
         return element
     }
 
-    /// Builds a `document.querySelectorAll`-style selector string for the given
-    /// element inspection (the page already computed it) after redaction.
     func safeCopySelector(_ element: ElementInspection) -> String {
         Redactor.redactText(element.selector)
     }
@@ -139,11 +111,8 @@ final class DOMInspector {
     }
 }
 
-// MARK: - JS snippets & evaluation
-
 extension DOMInspector {
 
-    /// Flattened summary of visible interactive/structural elements.
     var domSummaryScript: String {
         """
         (function(){
@@ -173,7 +142,6 @@ extension DOMInspector {
         """
     }
 
-    /// localStorage + sessionStorage dump (truncated per value).
     var storageScript: String {
         """
         (function(){
@@ -183,7 +151,6 @@ extension DOMInspector {
         """
     }
 
-    /// Outline elements whose text matches `text` (case-insensitive).
     func highlightScript(text: String) -> String {
         var escaped = text
         escaped = escaped.replacingOccurrences(of: "\\", with: "\\\\")
@@ -212,8 +179,6 @@ extension DOMInspector {
         """
     }
 
-    /// Evaluate a user-provided snippet in page context. The RESULT is
-    /// redacted by this method before it is returned for display.
     func evaluateUserSnippet(_ code: String) async -> String {
         guard let raw = try? await coordinator?.evaluate(code) else {
             return "⚠️ Evaluation failed or returned nil"
@@ -224,10 +189,6 @@ extension DOMInspector {
         }
     }
 
-    // MARK: Select-element scripts
-
-    /// Installs a lightweight, reversible tap-to-inspect overlay on the live
-    /// page. Uses the public WebKit API only; no private selectors.
     var selectModeStartScript: String {
         """
         (function(){
@@ -316,7 +277,6 @@ extension DOMInspector {
         """
     }
 
-    /// Removes the tap-to-inspect overlay and restore normal page interaction.
     var selectModeStopScript: String {
         """
         (function(){
@@ -330,12 +290,10 @@ extension DOMInspector {
         """
     }
 
-    /// Returns the JSON of the last picked element, or empty string if none.
     var readPickScript: String {
         "window.__naviPicked || ''"
     }
 
-    /// Refresh all page-derived data at once.
     func refreshAll() async {
         await refreshDOM()
         await refreshStorage()

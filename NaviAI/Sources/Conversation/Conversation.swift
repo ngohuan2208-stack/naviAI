@@ -1,7 +1,5 @@
 import Foundation
 
-// MARK: - Conversation models
-
 enum ConversationMessageRole: String, Codable {
     case user
     case assistant
@@ -22,7 +20,7 @@ struct ConversationMessage: Codable, Identifiable, Equatable {
     var type: ConversationMessageType = .text
     var text: String
     var date: Date = Date()
-    /// Optional fixed-role metadata (never secrets).
+
     var note: String = ""
 }
 
@@ -34,10 +32,10 @@ struct Conversation: Codable, Identifiable, Equatable {
     var messages: [ConversationMessage] = []
     var tags: [String] = []
     var isArchived: Bool = false
-    /// Associated tab URLs / task names — purely descriptive, safe.
+
     var associatedURLs: [String] = []
     var associatedTaskNames: [String] = []
-    /// Compact memory summarised when the conversation gets long.
+
     var summary: String = ""
 
     var lastActivity: Date { messages.last?.date ?? updatedAt }
@@ -46,7 +44,6 @@ struct Conversation: Codable, Identifiable, Equatable {
         messages.last(where: { $0.type == .text || $0.type == .info })?.text ?? ""
     }
 
-    /// Deterministic, cheap title from the first user message (no LLM needed).
     static func suggestedTitle(from text: String) -> String {
         let cleaned = text.trimmingCharacters(in: .whitespacesAndNewlines)
         let collapsed = cleaned.split(whereSeparator: { $0 == "\n" || $0 == " " }).joined(separator: " ")
@@ -55,9 +52,6 @@ struct Conversation: Codable, Identifiable, Equatable {
     }
 }
 
-// MARK: - Continuation snapshot
-
-/// Everything needed to resume a conversation later (used by the AI panel).
 struct ConversationSnapshot: Codable, Equatable {
     var conversationID: UUID
     var apiHistory: [OutboundItem]

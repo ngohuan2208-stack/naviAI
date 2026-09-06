@@ -2,9 +2,6 @@ import Foundation
 import UIKit
 import WebKit
 
-/// Per-tab owner of a WKWebView. Owns the navigation/session delegates,
-/// download handling and page events. Every tab shares the same persistent
-/// `WKWebsiteDataStore`, so cookies / localStorage survive app restarts.
 final class WebCoordinator: NSObject {
     weak var browser: BrowserStore?
 
@@ -14,7 +11,6 @@ final class WebCoordinator: NSObject {
     private var activeDownloads: [WKDownload: DownloadContext] = [:]
     private(set) var isDesktopAgent: Bool
 
-    /// Desktop-mode user agent used when the setting is on.
     static let desktopUserAgent = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Safari/605.1.15"
 
     init(tabID: UUID, desktopMode: Bool, ephemeral: Bool = false) {
@@ -29,8 +25,7 @@ final class WebCoordinator: NSObject {
             forMainFrameOnly: true
         ))
         config.userContentController = controller
-        // Private tabs use an isolated, non-persistent store: their cookies and
-        // local storage do not survive the session (official WebKit API).
+
         config.websiteDataStore = ephemeral ? WKWebsiteDataStore.nonPersistent() : WKWebsiteDataStore.default()
         config.allowsInlineMediaPlayback = true
         config.defaultWebpagePreferences.allowsContentJavaScript = true
@@ -59,9 +54,6 @@ final class WebCoordinator: NSObject {
         webView.load(URLRequest(url: url))
     }
 
-    /// Route an update to the owning store from a WebKit delegate callback,
-    /// hopping onto the main actor. WebKit calls us on the main thread, so this
-    /// is just an isolation shim.
     func notify(_ action: @escaping @MainActor (BrowserStore) -> Void) {
         guard let browser else { return }
         Task { @MainActor in action(browser) }
@@ -80,8 +72,6 @@ final class WebCoordinator: NSObject {
         }
     }
 }
-
-// MARK: - WKNavigationDelegate
 
 extension WebCoordinator: WKNavigationDelegate {
     func webView(_ webView: WKWebView, didStartProvisionalNavigation navigation: WKNavigation!) {
@@ -151,17 +141,13 @@ extension WebCoordinator: WKNavigationDelegate {
     }
 }
 
-// MARK: - WKUIDelegate
-
 extension WebCoordinator: WKUIDelegate {
     func webView(_ webView: WKWebView, createWebViewWith configuration: WKWebViewConfiguration,
                  for navigationAction: WKNavigationAction, windowFeatures: WKWindowFeatures) -> WKWebView? {
-        // Handled via decidePolicyFor (targetFrame == nil).
+
         return nil
     }
 }
-
-// MARK: - WKDownloadDelegate
 
 extension WebCoordinator: WKDownloadDelegate {
     func webView(_ webView: WKWebView, navigationResponse: WKNavigationResponse,
@@ -212,8 +198,6 @@ extension WebCoordinator: WKDownloadDelegate {
         return candidate
     }
 }
-
-// MARK: - Supporting types
 
 final class DownloadContext {
     var targetURL: URL?

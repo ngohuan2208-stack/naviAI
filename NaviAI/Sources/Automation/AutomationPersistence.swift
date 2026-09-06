@@ -1,11 +1,5 @@
 import Foundation
 
-// MARK: - Automation persistence
-
-/// Durable storage for automation tasks, run history and the agent activity
-/// log. Everything lives in app-support JSON files (no third-party
-/// dependency, no plaintext secrets — API keys stay in the Keychain via
-/// ProviderStore/KeychainService).
 struct AutomationPersistence {
 
     static let shared = AutomationPersistence()
@@ -38,8 +32,6 @@ struct AutomationPersistence {
         return d
     }()
 
-    // MARK: Tasks
-
     func loadTasks() -> [AutomationTask] {
         guard let data = try? Data(contentsOf: tasksURL) else { return [] }
         return (try? decoder.decode([AutomationTask].self, from: data)) ?? []
@@ -50,8 +42,6 @@ struct AutomationPersistence {
             try? data.write(to: tasksURL, options: .atomic)
         }
     }
-
-    // MARK: Run history
 
     func loadHistory() -> [AutomationRun] {
         guard let data = try? Data(contentsOf: historyURL) else { return [] }
@@ -64,8 +54,6 @@ struct AutomationPersistence {
         }
     }
 
-    // MARK: Agent activity log
-
     func loadActivity() -> [AgentActivityEntry] {
         guard let data = try? Data(contentsOf: activityURL) else { return [] }
         return (try? decoder.decode([AgentActivityEntry].self, from: data)) ?? []
@@ -76,8 +64,6 @@ struct AutomationPersistence {
             try? data.write(to: activityURL, options: .atomic)
         }
     }
-
-    // MARK: Wipe
 
     func wipeAll() {
         try? fm.removeItem(at: tasksURL)

@@ -1,9 +1,5 @@
 import SwiftUI
 import UIKit
-import SwiftUI
-import UIKit
-
-// MARK: - Code Lab tab
 
 private struct DevCodeLabTab: View {
     @ObservedObject private var store = CodeLabStore.shared
@@ -12,10 +8,6 @@ private struct DevCodeLabTab: View {
         CodeLabView(store: store)
     }
 }
-
-// MARK: - Console tab
-
-// MARK: - Console tab
 
 private struct DevConsoleTab: View {
     @ObservedObject var store: DevToolsStore
@@ -89,8 +81,6 @@ private struct DevConsoleTab: View {
         }
     }
 }
-
-// MARK: - Network tab
 
 private struct DevNetworkTab: View {
     @ObservedObject var store: DevToolsStore
@@ -170,9 +160,6 @@ private struct DevNetworkTab: View {
 
 }
 
-// MARK: - Debug tab
-// MARK: - Debug tab
-
 private struct DevDebugTab: View {
     @ObservedObject var store: DevToolsStore
     let inspector: DOMInspector
@@ -247,16 +234,12 @@ private struct DevDebugTab: View {
     }
 }
 
-// MARK: - DevTools panel (bottom sheet)
-
-/// The on-device DevTools surface. On iPhone it is a bottom sheet
-/// (medium/large detents); on regular-width layouts it can be presented
-/// side-by-side by the caller. All data shown is already redacted.
 struct DevToolsPanelView: View {
     @EnvironmentObject var app: AppModel
     @ObservedObject private var store = DevToolsStore.shared
     @State private var tab: Panel = .console
     @State private var refreshing = false
+    @Environment(\.dismiss) private var dismiss
 
     enum Panel: String, CaseIterable, Identifiable {
         case console, network, elements, storage, debug, codeLab
@@ -342,7 +325,7 @@ struct DevToolsPanelView: View {
     private var inspector: DOMInspector {
         DOMInspector(coordinator: app.browser.activeCoordinator)
     }
-// MARK: - Elements tab
+}
 
 private struct DevElementsTab: View {
     @ObservedObject var store: DevToolsStore
@@ -467,7 +450,7 @@ private struct DevElementsTab: View {
             if !started {
                 selecting = false
             }
-            // Read the pick shortly after the user taps; poll a few times.
+
             for _ in 0..<25 {
                 try? await Task.sleep(nanoseconds: 600_000_000)
                 if let picked = await inspector.readSelectedElement() {
@@ -486,8 +469,6 @@ private struct DevElementsTab: View {
         app.browser.submitPrompt("Explain this element on the current page: \(el.displayLabel) (selector \(el.selector)). Text: \(el.text)")
     }
 }
-
-// MARK: - Storage tab
 
 private struct DevStorageTab: View {
     @ObservedObject var store: DevToolsStore
@@ -525,7 +506,4 @@ private struct DevStorageTab: View {
             }
         }
     }
-}
-
-    @Environment(\.dismiss) private var dismiss
 }

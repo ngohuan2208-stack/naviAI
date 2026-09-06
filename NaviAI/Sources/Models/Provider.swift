@@ -1,7 +1,5 @@
 import Foundation
 
-// MARK: - Provider kind
-
 enum AIProviderKind: String, CaseIterable, Codable, Identifiable, Hashable {
     case openAI = "openai"
     case deepseek
@@ -76,9 +74,6 @@ enum AIProviderKind: String, CaseIterable, Codable, Identifiable, Hashable {
         }
     }
 
-    /// Suggested models. These are *suggestions only* - the user can edit them
-    /// or fetch the live list from the provider. NaviAI never asserts that a
-    /// model exists unless the provider's own API returned it.
     var defaultModelSuggestions: [String] {
         switch self {
         case .openAI: return ["gpt-4o", "gpt-4o-mini", "o3-mini"]
@@ -103,8 +98,6 @@ enum APIMessageFormat: String, Codable {
         }
     }
 }
-
-// MARK: - Provider config
 
 struct ProviderConfig: Codable, Identifiable, Equatable, Hashable {
     var id: UUID = UUID()

@@ -3,17 +3,6 @@ import Combine
 import Network
 import Security
 
-// MARK: - Proxy manager
-
-/// Owns proxy configuration. On iOS, WKWebView traffic cannot be redirected
-/// through a user-configured proxy with public API; URLSession CAN, via the
-/// `connectionProxyDictionary` on `URLSessionConfiguration`.
-///
-/// Scope (documented honestly):
-///  • AI provider calls (LLMService / ImagePipeline / ProviderStore) — full
-///    proxy support through the shared URLSession configuration.
-///  • WKWebView page traffic — NOT proxied (WebKit ignores app-level proxy
-///    settings on iOS). The UI states this limitation instead of pretending.
 @MainActor
 final class ProxyManager: ObservableObject {
     static let shared = ProxyManager()
@@ -39,8 +28,6 @@ final class ProxyManager: ObservableObject {
     private init() {
         load()
     }
-
-    // MARK: Persistence (profiles WITHOUT secrets + rotation prefs)
 
     private func load() {
         guard let data = defaults.data(forKey: Keys.snapshot),
@@ -73,8 +60,6 @@ final class ProxyManager: ObservableObject {
         }
     }
 
-    // MARK: Keychain credential storage
-
     private func account(for id: UUID) -> String { keychainPrefix + id.uuidString }
 
     func setPassword(_ password: String, for profile: ProxyProfile) {
@@ -94,12 +79,8 @@ final class ProxyManager: ObservableObject {
     }
 }
 
-// MARK: - Connection proxy dictionary (the ONLY official mechanism)
-
 extension ProxyManager {
 
-    /// Builds the connectionProxyDictionary for a profile, or nil when proxy
-    /// is disabled. Used by NetworkManager for all app-level HTTP traffic.
     func connectionProxyDictionary() -> [AnyHashable: Any]? {
         guard enabled, let proxy = pool.current else { return nil }
         return Self.dictionary(for: proxy)
@@ -120,8 +101,6 @@ extension ProxyManager {
         return dict
     }
 
-    // MARK: Rotation triggers
-
     func notifyTaskFinished(success: Bool) {
         guard enabled else { return }
         if pool.rotation == .rotateAfterTask || (pool.rotation == .rotateOnFailure && !success) {
@@ -137,9 +116,6 @@ extension ProxyManager {
         persist()
     }
 
-    // MARK: Test connection
-
-    /// Tests a profile and stores the outcome for the UI.
     @discardableResult
     func testAndRecord(profile: ProxyProfile) async -> TestResult {
         let result = await test(profile: profile)
@@ -147,9 +123,6 @@ extension ProxyManager {
         return result
     }
 
-    /// Tests a profile by fetching https://www.gstatic.com/generate_204 through
-    /// a temporary session using the profile's proxy dictionary. Credentials
-    /// come from the Keychain.
     func test(profile: ProxyProfile) async -> TestResult {
         var dict = Self.dictionary(for: profile)
         if !profile.username.isEmpty {

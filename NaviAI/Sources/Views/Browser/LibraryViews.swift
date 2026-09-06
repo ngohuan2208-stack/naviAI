@@ -17,7 +17,7 @@ struct HistorySheet: View {
 
     private var results: [BrowserHistoryEntry] {
         var list = history.search(query)
-        list.reverse() // newest first
+        list.reverse()
         return list
     }
 
@@ -239,8 +239,6 @@ struct ContentUnavailable: View {
     }
 }
 
-// MARK: - Site data (cookies / storage = signed-in accounts)
-
 struct SiteDataSheet: View {
     @ObservedObject var store: BrowserStore
 
@@ -325,13 +323,13 @@ struct SiteDataSheet: View {
         store.removeAllSiteData()
         records.removeAll()
         if count > 0 {
-            // Sign-out feedback.
+
             store.appendInfo("Cleared site data for \(count) site\(count == 1 ? "" : "s").")
         }
     }
 
     private func typeSummary(for record: WKWebsiteDataRecord) -> String {
-        // Human summary of which data a site has stored.
+
         var parts: [String] = []
         if record.dataTypes.contains(WKWebsiteDataTypeCookies) { parts.append("Cookies") }
         if record.dataTypes.contains(WKWebsiteDataTypeLocalStorage) { parts.append("Local storage") }

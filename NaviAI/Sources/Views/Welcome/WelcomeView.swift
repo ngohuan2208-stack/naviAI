@@ -1,9 +1,5 @@
 import SwiftUI
 
-// MARK: - Welcome screen
-
-/// Launch surface: big command box (AI intent routing), Continue row,
-/// quick actions, and smart recents across tabs/history/chats/research.
 struct WelcomeLaunchView: View {
     @EnvironmentObject var app: AppModel
 
@@ -57,8 +53,6 @@ struct WelcomeLaunchView: View {
     private func markVisited() {
         app.settings.onboarded = true
     }
-
-    // MARK: Sections
 
     private var header: some View {
         HStack(alignment: .top, spacing: 12) {
@@ -178,8 +172,6 @@ struct WelcomeLaunchView: View {
         }
     }
 
-    // MARK: Actions
-
     private func enterBrowser(_ configure: @escaping () -> Void) {
         app.browser.showsWelcome = false
         configure()
@@ -191,9 +183,9 @@ struct WelcomeLaunchView: View {
         command = ""
         commandFocused = false
         if let intent = AppIntentRouter.detect(text: text) {
-            intent.perform(app: app)
+            intent.run(app, text)
         } else {
-            // No clear intent → treat as an AI chat request.
+
             app.browser.showsWelcome = false
             app.browser.showsChatPanel = true
             app.browser.submitPrompt(text)
@@ -201,17 +193,12 @@ struct WelcomeLaunchView: View {
     }
 }
 
-// MARK: - Continue suggestion
-
 extension WelcomeLaunchView {
 
-    /// The single most relevant "continue where you left off" item.
     private var continueItem: SmartRecent? {
         SmartRecentsBuilder.build(app: app).first
     }
 }
-
-// MARK: - Smart recent model
 
 struct SmartRecent: Identifiable {
     enum Kind {
@@ -252,18 +239,13 @@ struct SmartRecent: Identifiable {
     }
 }
 
-// MARK: - Smart recents builder
-
 enum SmartRecentsBuilder {
 
-    /// Merges the newest items from every store, interleaved by kind so the
-    /// list is diverse: tabs → chats → reports → history → automation.
     @MainActor
     static func build(app: AppModel, limit: Int = 8) -> [SmartRecent] {
         var items: [SmartRecent] = []
         let browser = app.browser
 
-        // Open tabs (skip blank ones)
         for tab in browser.tabs.prefix(3) where tab.url != nil {
             let tabID = tab.id
             let title = tab.title.isEmpty ? (tab.url?.host ?? "Tab") : tab.title
@@ -281,7 +263,6 @@ enum SmartRecentsBuilder {
                 }))
         }
 
-        // Recent conversations
         for convo in ConversationStore.shared.conversations.prefix(2) {
             let convoID = convo.id
             let title = convo.title
@@ -299,7 +280,6 @@ enum SmartRecentsBuilder {
                 }))
         }
 
-        // Research reports
         for report in DeepResearchEngine.shared.reports.prefix(2) {
             let question = report.question
             let date = report.createdAt
@@ -315,7 +295,6 @@ enum SmartRecentsBuilder {
                 }))
         }
 
-        // History
         for entry in HistoryStore.shared.entries.prefix(2) {
             let urlText = entry.url
             let title = entry.title.isEmpty ? (URL(string: urlText)?.host ?? "Page") : entry.title
@@ -332,7 +311,6 @@ enum SmartRecentsBuilder {
                 }))
         }
 
-        // Recently finished automation runs
         for run in app.automation.history.prefix(1) {
             let name = run.taskName
             let status = run.status.label
@@ -355,8 +333,6 @@ enum SmartRecentsBuilder {
             .map { $0 }
     }
 }
-
-// MARK: - Smart recents section view
 
 struct SmartRecentsSection: View {
     @ObservedObject var app: AppModel
@@ -414,8 +390,6 @@ struct SmartRecentsSection: View {
     }
 }
 
-// MARK: - Quick action tile
-
 struct QuickAction: View {
     let symbol: String
     let label: String
@@ -441,9 +415,6 @@ struct QuickAction: View {
     }
 }
 
-// MARK: - Shared motion helpers
-
-/// Springy press-down feedback shared by tappable cards on this screen.
 struct BouncyButtonStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
@@ -481,13 +452,11 @@ private struct BreathingModifier: ViewModifier {
 }
 
 extension View {
-    /// Fades and rises into place; used to stagger the Welcome sections in.
+
     func settleIn(_ appeared: Bool, delay: Double = 0) -> some View {
         modifier(SettleInModifier(appeared: appeared, delay: delay))
     }
 
-    /// A slow, gentle scale pulse — used on the mascot so it feels alive
-    /// without competing for attention.
     func breathing() -> some View {
         modifier(BreathingModifier())
     }

@@ -1,25 +1,19 @@
 import Foundation
 import Combine
 
-// MARK: - Conversation store
-
-/// Persistent store for user conversations (the AI chat history). Persists to
-/// iOS Application Support as JSON — never API keys, providers or secrets.
 @MainActor
 final class ConversationStore: ObservableObject {
 
     static let shared = ConversationStore()
 
     @Published private(set) var conversations: [Conversation] = []
-    /// The conversation the AI panel is currently attached to.
+
     @Published var activeConversationID: UUID?
 
-    /// Inject an LLM-backed summarizer for long conversations; until then a
-    /// safe heuristic fallback compresses the context (offline, no secrets).
     var summarizer: (@MainActor (String) async -> String)? = nil
 
     private let url: URL
-    private let summaryThreshold = 40   // messages
+    private let summaryThreshold = 40
 
     private init() {
         let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first
@@ -29,8 +23,6 @@ final class ConversationStore: ObservableObject {
         url = dir.appendingPathComponent("conversations.json")
         load()
     }
-
-    // MARK: Persistence
 
     private func load() {
         guard let data = try? Data(contentsOf: url) else { return }
@@ -48,8 +40,6 @@ final class ConversationStore: ObservableObject {
             try? data.write(to: url, options: .atomic)
         }
     }
-
-    // MARK: CRUD
 
     var activeConversation: Conversation? {
         conversations.first { $0.id == activeConversationID }
@@ -103,10 +93,9 @@ final class ConversationStore: ObservableObject {
         activeConversationID = nil
         save()
     }
-// MARK: Messages
 
     func append(_ message: ConversationMessage, to id: UUID) {
-        // Never persist anything that smells like a credential.
+
         var m = message
         m.text = Self.redact(message.text)
         guard let idx = conversations.firstIndex(where: { $0.id == id }) else { return }
@@ -126,8 +115,6 @@ final class ConversationStore: ObservableObject {
         save()
     }
 
-    // MARK: Search / listing
-
     func search(_ query: String) -> [Conversation] {
         let q = query.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !q.isEmpty else { return conversations }
@@ -137,7 +124,6 @@ final class ConversationStore: ObservableObject {
         }
     }
 
-    /// Conversation history suitable for long-term context handoff.
     func transcript(for id: UUID) -> String {
         guard let convo = conversations.first(where: { $0.id == id }) else { return "" }
         var blocks: [String] = []
@@ -152,13 +138,10 @@ final class ConversationStore: ObservableObject {
         return joined.count > 12000 ? String(joined.prefix(12000)) + "…" : joined
     }
 
-    /// Copy transcript lines for the AI panel (bounded, compressed).
     func chatHistory(for id: UUID, maxMessages: Int = 30) -> [ConversationMessage] {
         guard let convo = conversations.first(where: { $0.id == id }) else { return [] }
         return Array(convo.messages.suffix(maxMessages))
     }
-
-    // MARK: Summarization
 
     func setSummary(_ text: String, for id: UUID) {
         guard let idx = conversations.firstIndex(where: { $0.id == id }) else { return }
@@ -178,7 +161,7 @@ final class ConversationStore: ObservableObject {
                 setSummary(result, for: id)
             }
         } else {
-            // Offline heuristic fallback: oldest intents + last assistant answer.
+
             let intents = tail.filter { $0.role == .user }.prefix(8).map { $0.text }
             let lastAnswer = tail.last(where: { $0.role == .assistant })?.text
             var parts = intents

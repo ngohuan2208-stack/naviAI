@@ -2,12 +2,6 @@ import Foundation
 import Network
 import CryptoKit
 
-// MARK: - Server-side WebSocket (RFC 6455)
-
-/// A minimal, correct server-side WebSocket over an already-upgraded raw TCP
-/// `NWConnection`. Handles text/binary frames, continuation frames, ping/pong
-/// keep-alive, close handshake and strict size limits. Server frames are
-/// always unmasked (per spec); client frames are unmasked on read.
 final class LANWebSocket {
 
     enum Opcode: UInt8 {
@@ -28,7 +22,6 @@ final class LANWebSocket {
     private var fragmented: Data?
     private var fragmentedOpcode: UInt8 = LANWebSocket.Opcode.text.rawValue
 
-    /// Received complete text messages.
     var onMessage: ((String) -> Void)?
     var onClose: (() -> Void)?
     var onError: ((Error) -> Void)?
@@ -39,14 +32,10 @@ final class LANWebSocket {
     }
 
     func start() {
-        // NOTE: the underlying connection is already started by the HTTP
-        // server and its callbacks arrive on the server's queue. We must NOT
-        // call `connection.start` again here.
+
         if !buffer.isEmpty { processBuffer() }
         receive()
     }
-
-    // MARK: Sending
 
     func send(text: String) {
         guard let data = text.data(using: .utf8) else { return }
@@ -92,8 +81,6 @@ final class LANWebSocket {
                         isComplete: true,
                         completion: .contentProcessed { _ in })
     }
-
-    // MARK: Receiving
 
     private func receive() {
         connection.receive(minimumIncompleteLength: 1, maximumLength: 64 * 1024) { [weak self] data, _, isComplete, error in
@@ -159,7 +146,7 @@ final class LANWebSocket {
 
     private func deliver(_ data: Data, opcode: UInt8) {
         if opcode == Opcode.binary.rawValue {
-            // Binary inbound is not part of our protocol; ignore safely.
+
             return
         }
         guard let text = String(data: data, encoding: .utf8) else { return }
@@ -225,10 +212,8 @@ final class LANWebSocket {
     }
 }
 
-// MARK: - Handshake helper
-
 extension LANWebSocket {
-    /// Compute the `Sec-WebSocket-Accept` value for the handshake.
+
     static func acceptValue(for secWebSocketKey: String) -> String {
         let magic = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11"
         let combined = (secWebSocketKey + magic).data(using: .utf8) ?? Data()
@@ -237,12 +222,10 @@ extension LANWebSocket {
     }
 }
 
-// MARK: - Lightweight HTTP head for the handshake route
-
 struct LANHTTPRequest {
     var method: String
-    var path: String              // path without query
-    var rawURL: String            // original path + query
+    var path: String
+    var rawURL: String
     var query: [String: String]
     var headers: [String: String]
     var body: Data

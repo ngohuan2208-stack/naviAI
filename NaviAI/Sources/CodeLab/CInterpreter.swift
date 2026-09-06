@@ -1,7 +1,5 @@
 import Foundation
 
-// MARK: - C Language Interpreter (subset)
-
 public struct CInterpreterResult {
     public let stdout: String
     public let stderr: String
@@ -51,9 +49,11 @@ public final class CInterpreter {
         }
         let duration = Int(start.timeIntervalSinceNow * -1000)
         if stdout.count > maxOutput {
-
-// MARK: - Lexer
-
+            stdout = String(stdout.prefix(maxOutput)) + "\n... (truncated)"
+        }
+        return CInterpreterResult(stdout: stdout, stderr: stderr, exitCode: exitCode, durationMs: duration, steps: steps)
+    }
+}
 extension CInterpreter {
     final class Lexer {
         let src: [Character]
@@ -195,14 +195,6 @@ private extension Character {
     }
 }
 
-            stdout = String(stdout.prefix(maxOutput)) + "\n... (truncated)"
-        }
-        return CInterpreterResult(stdout: stdout, stderr: stderr, exitCode: exitCode, durationMs: duration, steps: steps)
-    }
-}
-
-// MARK: - AST
-
 extension CInterpreter {
     indirect enum Expr {
         case intLit(Int), strLit(String), ident(String)
@@ -223,9 +215,6 @@ extension CInterpreter {
         let body: Stmt
     }
 }
-
-// MARK: - Parser (top level)
-
 extension CInterpreter {
     final class Parser {
         let lexer: Lexer
@@ -285,11 +274,26 @@ extension CInterpreter {
         }
 
         private func parseBlock() throws -> Stmt {
+            try lexer.expectOp("{")
+            var stmts: [Stmt] = []
+            while case .op(let o) = lexer.current(), o != "}" {
+                stmts.append(try parseStmt())
+            }
+            try lexer.expectOp("}")
+            return .block(stmts)
+        }
 
-// MARK: - Parser (statements)
-
+        fileprivate func matchOp(_ s: String) -> Bool {
+            if case .op(let o) = lexer.current(), o == s { lexer.advance(); return true }
+            return false
+        }
+    }
+}
 extension CInterpreter.Parser {
     fileprivate func parseStmt() throws -> Stmt {
+        if case .op(let o) = lexer.current(), o == "{" {
+            return try parseBlock()
+        }
         if case .keyword(let k) = lexer.current() {
             switch k {
             case "if":
@@ -376,23 +380,6 @@ extension CInterpreter.Parser {
         }
     }
 }
-            try lexer.expectOp("{")
-            var stmts: [Stmt] = []
-            while case .op(let o) = lexer.current(), o != "}" {
-                stmts.append(try parseStmt())
-            }
-            try lexer.expectOp("}")
-            return .block(stmts)
-        }
-
-        fileprivate func matchOp(_ s: String) -> Bool {
-            if case .op(let o) = lexer.current(), o == s { lexer.advance(); return true }
-            return false
-        }
-    }
-
-// MARK: - Parser (expressions)
-
 extension CInterpreter.Parser {
     fileprivate func tryParseExpr() throws -> Expr { try parseAssign() }
 
@@ -503,9 +490,35 @@ extension CInterpreter.Parser {
         case .strLit(let s): lexer.advance(); return .strLit(s)
         case .ident(let n):
             lexer.advance()
+            return n == "NULL" ? .intLit(0) : .ident(n)
+        case .op(let o) where o == "(":
+            lexer.advance()
+            if isTypeStart() {
+                let t = try parseType()
+                try lexer.expectOp(")")
+                return .cast(t, try parseUnary())
+            }
+            let e = try tryParseExpr()
+            try lexer.expectOp(")")
+            return e
+        default:
+            throw CInterpreterError.parseError("unexpected token at line \(lexer.curLine())")
+        }
+    }
 
-// MARK: - Virtual Machine
+    private func isTypeStart() -> Bool {
+        if case .keyword(let k) = lexer.current() { return ["int","char","void"].contains(k) }
+        return false
+    }
 
+    private func bin(_ next: () throws -> Expr, _ ops: [String]) throws -> Expr {
+        var l = try next()
+        while case .op(let o) = lexer.current(), ops.contains(o) {
+            lexer.advance(); l = .binary(o, l, try next())
+        }
+        return l
+    }
+}
 extension CInterpreter {
     final class VM {
         let interpreter: CInterpreter
@@ -539,8 +552,8 @@ extension CInterpreter {
         func alloc(_ bytes: Int) throws -> Int {
             let p = heapUsed
             heapUsed += bytes
-            while heap.count < heapUsed { heap.append(0) }
             if heapUsed > interpreter.maxHeap { throw CInterpreterError.memoryLimit }
+            while heap.count < heapUsed { heap.append(0) }
             return p
         }
 
@@ -571,8 +584,9 @@ extension CInterpreter {
         func lookup(_ name: String) throws -> Int {
             if let v = vars.last?[name] { return v }
             throw CInterpreterError.runtimeError("undefined variable '\(name)'")
-
-// MARK: - VM: statement execution
+        }
+    }
+}
 
 extension CInterpreter.VM {
     fileprivate func exec(_ s: Stmt) throws {
@@ -621,18 +635,17 @@ extension CInterpreter.VM {
         case .break: breaking = true
         case .continue: continuing = true
         }
-
-// MARK: - VM: expression evaluation
-
+    }
+}
 extension CInterpreter.VM {
     fileprivate func eval(_ e: Expr) throws -> Int {
         checkSteps()
         switch e {
         case .intLit(let v): return v
         case .strLit(let s):
-            let p = heapUsed
             let bytes = Array(s.utf8) + [0]
-            for b in bytes { try store(heapUsed, Int(b)); heapUsed += 1 }
+            let p = try alloc(bytes.count)
+            for (i, b) in bytes.enumerated() { try store(p + i, Int(b)) }
             return p
         case .ident(let n):
             if n == "NULL" { return 0 }
@@ -653,6 +666,11 @@ extension CInterpreter.VM {
             switch op {
             case "&&": return try eval(l) != 0 && eval(r) != 0 ? 1 : 0
             case "||": return try eval(l) != 0 || eval(r) != 0 ? 1 : 0
+            case "?":
+                guard case .binary(":", let tv, let fv) = r else {
+                    throw CInterpreterError.runtimeError("malformed conditional")
+                }
+                return try eval(l) != 0 ? eval(tv) : eval(fv)
             default:
                 let a = try eval(l), b = try eval(r)
                 return try arith(op, a, b)
@@ -712,9 +730,28 @@ extension CInterpreter.VM {
         switch target {
         case .ident(let n): try assign(n, v)
         case .deref(let p): try store32(try eval(p), v)
+        case .index(let base, let idx):
+            let b = try eval(base), i = try eval(idx)
+            try store32(b + i * 4, v)
+        default: throw CInterpreterError.runtimeError("invalid assignment target")
+        }
+    }
 
-// MARK: - VM: built-in functions
+    func assign(_ name: String, _ v: Int) throws {
+        if vars.last?[name] != nil { vars[vars.count - 1][name] = v; return }
+        vars[vars.count - 1][name] = v
+    }
 
+    func set(_ name: String, _ v: Int) { vars[vars.count - 1][name] = v }
+
+    private func call(_ fn: Function, _ args: [Int]) throws {
+        var frame: [String: Int] = [:]
+        for (i, p) in fn.params.enumerated() { frame[p.1] = i < args.count ? args[i] : 0 }
+        vars.append(frame)
+        try exec(fn.body)
+        vars.removeLast()
+    }
+}
 extension CInterpreter.VM {
     fileprivate func callFn(_ name: String, _ args: [Expr]) throws -> Int {
         checkSteps()
@@ -787,9 +824,7 @@ extension CInterpreter.VM {
         }
         throw CInterpreterError.runtimeError("undefined function '\(name)'")
     }
-
-// MARK: - VM: printf
-
+}
 extension CInterpreter.VM {
     fileprivate func printf(_ args: [Expr]) throws -> Int {
         guard let fmtExpr = args.first else { return 0 }
@@ -828,7 +863,6 @@ extension CInterpreter.VM {
         let p = try eval(e)
         return readString(p)
     }
-}
 
     private func readString(_ p: Int) -> String {
         var s = ""
@@ -838,61 +872,5 @@ extension CInterpreter.VM {
             i += 1
         }
         return s
-    }
-}
-        case .index(let base, let idx):
-            let b = try eval(base), i = try eval(idx)
-            try store32(b + i * 4, v)
-        default: throw CInterpreterError.runtimeError("invalid assignment target")
-        }
-    }
-}
-    }
-}
-        }
-
-        func assign(_ name: String, _ v: Int) throws {
-            if vars.last?[name] != nil { vars[vars.count - 1][name] = v; return }
-            vars[vars.count - 1][name] = v
-        }
-
-        func set(_ name: String, _ v: Int) { vars[vars.count - 1][name] = v }
-
-        private func call(_ fn: Function, _ args: [Int]) throws {
-            var frame: [String: Int] = [:]
-            for (i, p) in fn.params.enumerated() { frame[p.1] = i < args.count ? args[i] : 0 }
-            vars.append(frame)
-            try exec(fn.body)
-            vars.removeLast()
-        }
-    }
-}
-            return n == "NULL" ? .intLit(0) : .ident(n)
-        case .op(let o) where o == "(":
-            lexer.advance()
-            if isTypeStart() {
-                let t = try parseType()
-                try lexer.expectOp(")")
-                return .cast(t, try parseUnary())
-            }
-            let e = try tryParseExpr()
-            try lexer.expectOp(")")
-            return e
-        default:
-            throw CInterpreterError.parseError("unexpected token at line \(lexer.curLine())")
-        }
-    }
-
-    private func isTypeStart() -> Bool {
-        if case .keyword(let k) = lexer.current() { return ["int","char","void"].contains(k) }
-        return false
-    }
-
-    private func bin(_ next: () throws -> Expr, _ ops: [String]) throws -> Expr {
-        var l = try next()
-        while case .op(let o) = lexer.current(), ops.contains(o) {
-            lexer.advance(); l = .binary(o, l, try next())
-        }
-        return l
     }
 }

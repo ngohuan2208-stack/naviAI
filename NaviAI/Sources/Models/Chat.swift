@@ -1,17 +1,15 @@
 import Foundation
 
-// MARK: - Display transcript
-
 enum ChatRole: String, Codable {
     case user
     case assistant
 }
 
 enum TurnKind: String, Codable {
-    case text        // normal message (user or assistant final answer)
-    case action      // assistant describing an agent action (rendered compact)
-    case info        // system info / errors
-    case toolResult  // internal, compact display
+    case text
+    case action
+    case info
+    case toolResult
 }
 
 struct ChatTurn: Identifiable, Codable, Equatable {
@@ -28,14 +26,10 @@ struct ChatTurn: Identifiable, Codable, Equatable {
     }
 }
 
-// MARK: - Wire-level messages (what is actually sent to the model)
-
-/// The outbound history used by the agent loop. Encode is handled per-format
-/// inside LLMService.
 enum OutboundItem: Equatable {
     case system(String)
     case userText(String)
-    /// user message containing an inline screenshot (vision)
+
     case userVision(text: String, imageBase64: String, mimeType: String)
     case assistantText(String)
     case assistantToolCall(id: String, name: String, argumentsJSON: String)
@@ -48,19 +42,16 @@ struct ToolCallRequest: Equatable {
     var argumentsJSON: String
 }
 
-/// Result returned from a single model call.
 struct ProviderReply: Equatable {
     var text: String?
     var toolCalls: [ToolCallRequest]
     var finishReason: String?
 }
 
-// MARK: - Tool schema (OpenAI-style function schema; converted for Anthropic)
-
 struct AgentToolSpec {
     var name: String
     var description: String
-    var parameters: [String: Any]   // JSON-Schema object
+    var parameters: [String: Any]
 
     func asDictionary() -> [String: Any] {
         [
@@ -70,8 +61,6 @@ struct AgentToolSpec {
         ]
     }
 }
-
-// MARK: - Errors
 
 enum AIError: LocalizedError {
     case noActiveProvider
@@ -96,7 +85,6 @@ enum AIError: LocalizedError {
         }
     }
 
-    /// User-facing friendly message used in the UI.
     var friendlyMessage: String {
         switch self {
         case .invalidAPIKey: return "Invalid API key."

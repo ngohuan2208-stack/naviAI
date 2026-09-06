@@ -4,11 +4,6 @@ import Combine
 import UIKit
 import CryptoKit
 
-// MARK: - HTTP connection helper
-
-/// Reads HTTP requests and writes HTTP responses on one NWConnection. Read and
-/// write both happen on the server queue; async continuations bridge the
-/// callback API.
 final class LANHTTPConnection {
 
     private let connection: NWConnection
@@ -87,7 +82,6 @@ final class LANHTTPConnection {
             path = rawURL
         }
 
-        // Body (Content-Length).
         var body = Data()
         if let lengthText = headers["content-length"], let length = Int(lengthText), length > 0 {
             guard length <= LANProtocol.maxHTTPBodyBytes else { throw LANError.requestTooLarge }
@@ -141,8 +135,6 @@ final class LANHTTPConnection {
         }
     }
 
-    /// Bytes already read past the current HTTP request head (handed to a
-    /// WebSocket on upgrade so no frame is lost).
     var leftoverBuffer: Data { buffer }
 }
 
@@ -164,18 +156,6 @@ enum HTTPReason {
     }
 }
 
-// MARK: - LAN Control Server
-
-/// The LAN server that turns the iPhone into "Navi + LAN server" and lets PCs,
-/// tablets and other phones act as pure web clients. Real implementation using
-/// NWListener + hand-rolled HTTP/WebSocket (RFC 6455); no third-party code.
-///
-/// Implemented here:
-///  • HTTP serving of the remote Navi web UI + JSON API
-///  • WebSocket realtime channel (multi-device, versioned state)
-///  • PIN pairing → revocable session tokens
-///  • path lockdown (no traversal), rate limiting, hard payload caps
-///  • throttled realtime state broadcasts with change detection
 @MainActor
 final class LANControlServer: ObservableObject {
 
@@ -218,8 +198,6 @@ final class LANControlServer: ObservableObject {
     private init() {}
 
     var uptime: TimeInterval { Date().timeIntervalSince(startupDate) }
-
-    // MARK: Public lifecycle
 
     func start(browser: BrowserStore) {
         self.browser = browser
@@ -290,7 +268,6 @@ final class LANControlServer: ObservableObject {
         serverURL = ""
     }
 
-    /// Convenience for the settings UI: start/stop toggle.
     func toggle(browser: BrowserStore) {
         if status == .running {
             stop()
@@ -298,8 +275,6 @@ final class LANControlServer: ObservableObject {
             start(browser: browser)
         }
     }
-
-    // MARK: Client accounting
 
     private(set) var sessionByHash: [String: LANSession] = [:]
 
@@ -321,7 +296,6 @@ final class LANControlServer: ObservableObject {
             sessionByHash.removeValue(forKey: session.tokenHash)
         }
     }
-// MARK: Display helpers
 
     private func computeDisplayURL() -> String {
         var address = "localhost"
@@ -351,8 +325,6 @@ final class LANControlServer: ObservableObject {
         return "http://\(address):\(Self.port)"
     }
 
-    // MARK: Connection handling
-
     private func handleNewConnection(_ connection: NWConnection) {
         let id = UUID()
         let task = Task { [weak self] in
@@ -379,8 +351,7 @@ final class LANControlServer: ObservableObject {
                 case .closeConnection:
                     keepGoing = false
                 case .handedOff:
-                    // WebSocket upgrade: the connection now belongs to the
-                    // LANWebSocket — never cancel it from here.
+
                     keepGoing = false
                     return
                 }
@@ -402,10 +373,8 @@ final class LANControlServer: ObservableObject {
         case handedOff
     }
 
-    // MARK: Routing
-
     private func route(_ request: LANHTTPRequest, http: LANHTTPConnection, connection: NWConnection) async -> RouteResult {
-        // Path traversal lockdown: only exact known paths are served.
+
         switch (request.method, request.path) {
         case ("GET", "/"), ("GET", "/index.html"):
             await http.send(data: Data(LANWebUI.html.utf8), contentType: "text/html; charset=utf-8")
@@ -451,7 +420,6 @@ final class LANControlServer: ObservableObject {
             "ts": Date().timeIntervalSince1970
         ]
     }
-// MARK: Pairing, commands, screenshot, websocket
 
     private func handlePair(request: LANHTTPRequest, http: LANHTTPConnection, connection: NWConnection) async {
         let remote = remoteKey(connection)
@@ -548,8 +516,6 @@ final class LANControlServer: ObservableObject {
         return request.headers["x-forwarded-for"] ?? request.headers["remote-addr"]
     }
 
-    // MARK: WebSocket session lifecycle
-
     private func attachWebSocket(connection: NWConnection, token: String, preloaded: Data) {
         let socket = LANWebSocket(connection: connection, preloaded: preloaded)
         let tokenHash = LANSecurity.hash(token)
@@ -581,9 +547,6 @@ final class LANControlServer: ObservableObject {
         session.lastSeen = Date()
         registerSession(session)
 
-        // Full state restore on connect — a disconnecting client reconnects
-        // with the same token and immediately goes from "Synchronizing…" to
-        // "State restored".
         if let snapshot = browser?.remoteStateSnapshot(),
            let data = try? JSONSerialization.data(withJSONObject: snapshot),
            let text = String(data: data, encoding: .utf8) {
@@ -612,22 +575,17 @@ final class LANControlServer: ObservableObject {
             let result = await execute(command: command, args: args, tokenHash: tokenHash)
             send(to: socketSession, type: result.type, payload: result.payload)
         case LANProtocol.CommandType.subscribe:
-            // Subscriptions are all-or-nothing in this version; state events
-            // are always delivered.
+
             send(to: socketSession, type: LANProtocol.EventType.state, payload: browser?.remoteStateSnapshot() ?? [:])
         default:
             send(to: socketSession, type: LANProtocol.EventType.error, payload: ["error": "Unknown message type"])
         }
     }
-// MARK: - Command dispatcher (server-side)
 
 extension LANControlServer {
 
     typealias LANCommandResult = (type: String, payload: [String: Any])
 
-    /// Execute a remote command. Observe commands require `lanAllowObserve`;
-    /// control commands require `lanAllowControl`; sensitive effects still pass
-    /// through the on-device confirmation flow.
     func execute(command: String, args: [String: Any], tokenHash: String) async -> (type: String, payload: [String: Any]) {
         guard let browser else {
             return err("Browser not ready")
@@ -754,8 +712,6 @@ extension LANControlServer {
         }
     }
 
-    // MARK: Broadcasting
-
     private func startPolling() {
         pollTask?.cancel()
         pollTask = Task { [weak self] in
@@ -793,8 +749,6 @@ extension LANControlServer {
         }
     }
 
-    // MARK: Send helpers
-
     private func send(to session: LANSession, type: String, payload: [String: Any]) {
         guard let socket = session.socket else { return }
         session.seq += 1
@@ -816,7 +770,6 @@ extension LANControlServer {
         browser?.settings.lanAllowObserve ?? false
     }
 
-
     private static let controlCommands: Set<String> = [
         "navigate", "search", "home", "reload", "back", "forward",
         "openTab", "switchTab", "closeTab", "scroll",
@@ -835,11 +788,8 @@ extension LANControlServer {
     }
 }
 
-// MARK: - Remote-facing browser actions
-
 extension BrowserStore {
 
-    /// Full aggregate state delivered to LAN clients (versioned + throttled).
     func remoteStateSnapshot() -> [String: Any] {
         var snapshot: [String: Any] = [:]
 
@@ -933,7 +883,6 @@ var page: [String: Any] = [:]
         ]
     }
 
-    /// Click the first visible element whose text contains `text`.
     func clickTextFromRemote(_ text: String) async -> (String, [String: Any]) {
         do {
             let findResult = try await agentEvaluate(BrowserJavaScript.findTextExpr(query: text, max: 1))
@@ -948,8 +897,6 @@ var page: [String: Any] = [:]
         }
     }
 
-    /// Type into the first visible input whose placeholder/label/name contains
-    /// `target`. Enter/submit stays confirmation-gated on the phone.
     func typeTextFromRemote(target: String, text: String) async -> (String, [String: Any]) {
         let low = target.lowercased()
         do {
@@ -968,8 +915,6 @@ var page: [String: Any] = [:]
         }
     }
 }
-
-// MARK: - Codable → Any helpers
 
 private extension ActiveTaskCard {
     func toRemoteJSON() -> [String: Any] {

@@ -64,20 +64,16 @@ final class SettingsStore: ObservableObject {
     @Published var autoScrollEnabled: Bool { didSet { defaults.set(autoScrollEnabled, forKey: Keys.autoScroll) } }
     @Published var showAgentLabelsEnabled: Bool { didSet { defaults.set(showAgentLabelsEnabled, forKey: Keys.labels) } }
 
-    // Automation / background
     @Published var automationNotificationsEnabled: Bool { didSet { defaults.set(automationNotificationsEnabled, forKey: Keys.automationNotifications) } }
     @Published var automationDefaultPolicy: ConfirmationPolicy { didSet { defaults.set(automationDefaultPolicy.rawValue, forKey: Keys.automationPolicy) } }
     @Published var floatingStatusEnabled: Bool { didSet { defaults.set(floatingStatusEnabled, forKey: Keys.floatingStatus) } }
 
-    // Continuous agent / watchdog / vision
     @Published var agentWatchdogEnabled: Bool { didSet { defaults.set(agentWatchdogEnabled, forKey: Keys.watchdog) } }
     @Published var agentMaxContinuousSteps: Int { didSet { defaults.set(agentMaxContinuousSteps, forKey: Keys.maxSteps) } }
 
-    // Web screenshots (real-time vision limits)
     @Published var screenshotMaxWidth: Int { didSet { defaults.set(screenshotMaxWidth, forKey: Keys.screenshotWidth) } }
     @Published var screenshotMinInterval: Double { didSet { defaults.set(screenshotMinInterval, forKey: Keys.screenshotInterval) } }
 
-    // LAN Control
     @Published var lanEnabled: Bool { didSet { defaults.set(lanEnabled, forKey: Keys.lanEnabled) } }
     @Published var lanAllowObserve: Bool { didSet { defaults.set(lanAllowObserve, forKey: Keys.lanObserve) } }
     @Published var lanAllowControl: Bool { didSet { defaults.set(lanAllowControl, forKey: Keys.lanControl) } }

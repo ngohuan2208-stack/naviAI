@@ -1,10 +1,6 @@
 import SwiftUI
 import Network
 
-// MARK: - LAN Remote Control settings
-
-/// Settings pane for the LAN remote-control server: toggle, PIN pairing,
-/// connected devices and permission gates (observe / control).
 struct LANRemoteSettingsView: View {
     @EnvironmentObject private var app: AppModel
     @ObservedObject private var server = LANControlServer.shared
@@ -107,9 +103,6 @@ struct LANRemoteSettingsView: View {
     }
 }
 
-// MARK: - Pairing sheet
-
-/// Shows the current pairing PIN with countdown + copy.
 struct LANPairSheet: View {
     @ObservedObject private var pairing = LANPairing.shared
     @Environment(\.dismiss) private var dismiss

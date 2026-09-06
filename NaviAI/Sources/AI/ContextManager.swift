@@ -1,7 +1,5 @@
 import Foundation
 
-// MARK: - Context cache entry
-
 @MainActor
 final class ContextManager {
 
@@ -17,10 +15,8 @@ final class ContextManager {
     private var lastEventKey: String?
 
     private init() {
-        // No on-disk cache by default; contexts are derived from live pages.
-    }
 
-    // MARK: Cache (only send changes)
+    }
 
     func cachedContext(for url: String) -> WebPageContext? {
         cache[url]?.context
@@ -29,15 +25,13 @@ final class ContextManager {
     func handlePageContext(_ context: WebPageContext) -> WebPageContext {
         let key = context.cacheKey
         if let existing = cache[key], existing.hash == context.contentHash {
-            // Unchanged — do not re-emit full content.
+
             return existing.context
         }
         cache[key] = Entry(hash: context.contentHash, context: context, date: Date())
         return context
     }
 
-    /// Returns true when the page changed since we last saw it (incremental
-    /// context: we only forward the delta, not the whole page again).
     func hasChanged(from context: WebPageContext) -> Bool {
         guard let existing = cache[context.cacheKey] else { return true }
         return existing.hash != context.contentHash
@@ -51,9 +45,6 @@ final class ContextManager {
         cache.removeAll()
     }
 
-    // MARK: Dedup + ranking
-
-    /// Deduplicate by URL (and near-identical content hash).
     func deduplicate(_ contexts: [WebPageContext]) -> [WebPageContext] {
         var seenURLs = Set<String>()
         var seenHashes = Set<Int>()
@@ -69,8 +60,6 @@ final class ContextManager {
         return out
     }
 
-    /// Rank by simple lexical relevance to the current goal (title + first
-    /// paragraphs), keeping stable order as a tie-breaker.
     func ranked(_ contexts: [WebPageContext], relevanceTo goal: String) -> [WebPageContext] {
         let terms = goal.lowercased().split(whereSeparator: { $0 == " " || $0 == "," }).map(String.init)
         guard !terms.isEmpty else { return contexts }
@@ -87,10 +76,6 @@ final class ContextManager {
         return terms.reduce(0) { $0 + (haystack.contains($1) ? 1 : 0) }
     }
 
-    // MARK: Compression
-
-    /// Turn many page contexts into one token-bounded prompt fragment.
-    /// `maxChars` is a practical budget; the model is never sent a full DOM.
     func contextForModel(_ contexts: [WebPageContext], relevanceTo goal: String, maxChars: Int = 4000) -> String {
         let deduped = deduplicate(contexts)
         let ranked = ranked(deduped, relevanceTo: goal)
@@ -106,10 +91,6 @@ final class ContextManager {
         return String(out.joined(separator: "\n\n---\n\n").prefix(maxChars))
     }
 
-    // MARK: Chunking (used by deep read on long pages)
-
-    /// Split text into overlapping chunks of ~chars with a small overlap so
-    /// headings/paragraph boundaries survive chunking.
     func chunk(_ text: String, chunkChars: Int = 2500, overlap: Int = 200) -> [String] {
         guard text.count > chunkChars else { return [text] }
         var chunks: [String] = []
@@ -119,7 +100,7 @@ final class ContextManager {
             let piece = String(text[start..<end])
             chunks.append(piece.trimmingCharacters(in: .whitespacesAndNewlines))
             guard end < text.endIndex else { break }
-            // Advance by (chunkChars - overlap), but never regress.
+
             let nextOffset = min(chunkChars - overlap, text.distance(from: start, to: text.endIndex))
             guard nextOffset > 0 else { break }
             start = text.index(start, offsetBy: nextOffset)
@@ -127,10 +108,6 @@ final class ContextManager {
         return chunks.filter { !$0.isEmpty }
     }
 
-    // MARK: Event batching for "content near the region of interest"
-
-    /// Small helper: the paragraph(s) around a matched phrase, so the AI sees
-    /// local context instead of the whole page.
     func excerpt(near query: String, in paragraphs: [String], radius: Int = 2) -> String {
         let q = query.lowercased()
         var out: [String] = []

@@ -1,10 +1,5 @@
 import SwiftUI
 
-// MARK: - History center
-
-/// The full history hub: search, grouped-by-day browsing history, delete /
-/// clear ranges, plus the private-mode controls (default-private toggle and
-/// closing all private tabs). Complements the lightweight HistorySheet.
 struct HistoryCenterView: View {
     @ObservedObject var store: BrowserStore
     @ObservedObject private var history = HistoryStore.shared
@@ -15,7 +10,6 @@ struct HistoryCenterView: View {
     @State private var pendingClear: HistoryStore.ClearRange?
     @State private var pendingClearAllPrivate = false
 
-    /// Entries grouped by calendar day, newest first.
     private var grouped: [(day: String, entries: [BrowserHistoryEntry])] {
         let matches = history.search(query)
         let formatter = DateFormatter()
@@ -76,8 +70,6 @@ struct HistoryCenterView: View {
         }
     }
 
-    // MARK: Private mode
-
     @ViewBuilder
     private var privateSection: some View {
         Section("Private Mode") {
@@ -102,8 +94,6 @@ struct HistoryCenterView: View {
                 .foregroundStyle(.secondary)
         }
     }
-
-    // MARK: History list
 
     @ViewBuilder
     private var historySections: some View {

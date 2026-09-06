@@ -1,13 +1,11 @@
 import Foundation
 
-// MARK: - Agent Tool: runCode
-
 struct CodeLabTool {
     static let name = "runCode"
     static let description = "Execute a code snippet in the NaviAI Code Lab sandbox. Supports 'c' (via embedded interpreter) and 'javascript' (via JavaScriptCore). Use this when the user asks to run, test, or demonstrate code, or when an algorithm/performance explanation benefits from actual execution."
 
     struct Args: Codable {
-        var language: String   // "c", "javascript", "python", "swift"
+        var language: String
         var code: String
     }
 

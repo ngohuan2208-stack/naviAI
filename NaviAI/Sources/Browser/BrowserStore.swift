@@ -2,13 +2,11 @@ import Foundation
 import Combine
 import WebKit
 
-// MARK: - Tab
-
 @MainActor
 final class TabItem: ObservableObject, Identifiable {
     let id: UUID
     let coordinator: WebCoordinator
-    /// Whether this tab is part of a private (non-persistent storage) session.
+
     let isPrivate: Bool
     @Published var title: String = ""
     @Published var url: URL?
@@ -22,8 +20,6 @@ final class TabItem: ObservableObject, Identifiable {
 
     var webView: WKWebView { coordinator.webView }
 }
-
-// MARK: - Agent status
 
 enum AgentStatus: Equatable {
     case idle
@@ -83,8 +79,6 @@ enum AgentStatus: Equatable {
     }
 }
 
-// MARK: - User prompt / confirmation
-
 enum PromptKind {
     case action
     case captcha
@@ -100,30 +94,15 @@ struct UserPrompt: Identifiable {
     let denyTitle: String?
 }
 
-// MARK: - Cursor state
-
 struct CursorState: Equatable {
     var visible: Bool = false
     var position: CGPoint = .zero
     var label: String?
     var pulseID: Int = 0
-    /// Set momentarily while the AI "presses" the button so the mascot can
-    /// squash to look like a physical click.
+
     var isPressing: Bool = false
 }
 
-// MARK: - Agent modes
-
-/// The three ways the AI can engage with the browser.
-///
-/// - `.view`     : AI reads / understands / summarises / translates the current
-///                 page. It is strictly READ-ONLY — it never navigates, clicks
-///                 or types. Safe to run freely.
-/// - `.interact` : AI may control the browser (navigate, click, type, scroll…)
-///                 but asks for confirmation before impactful actions.
-/// - `.auto`     : AI plans and executes multi-step tasks on its own until it
-///                 produces a final answer, with confirmation guardrails for
-///                 risky actions.
 enum AgentMode: String, CaseIterable, Identifiable {
     case view
     case interact
@@ -150,11 +129,8 @@ enum AgentMode: String, CaseIterable, Identifiable {
         }
     }
 
-    /// Whether the agent is allowed to touch (navigate/click/type) the page.
-    /// View mode is strictly read-only.
     var permitsInteraction: Bool { self != .view }
 
-    /// Extra rules injected into the agent system prompt.
     var systemInstruction: String {
         switch self {
         case .view:
@@ -205,44 +181,33 @@ enum AgentMode: String, CaseIterable, Identifiable {
     }
 }
 
-// MARK: - Persisted session snapshot
-
-/// A single restored tab: its URL plus a human-friendly title so re-opening a
-/// session does not lose the tab labels.
 struct StoredTabSession: Codable {
     var url: URL?
     var title: String
 }
 
-// MARK: - Browser store
-
 @MainActor
 final class BrowserStore: ObservableObject {
 
-    // Injected dependencies
     let settings: SettingsStore
     let providers: ProviderStore
     let llm = LLMService()
 
-    // Tabs & surface
     @Published var tabs: [TabItem] = []
     @Published var activeTabID: UUID?
     @Published var viewportSize: CGSize = .zero
     weak var surface: WebSurfaceView?
 
-    // Chrome
     @Published var addressText: String = ""
     @Published var canGoBack = false
     @Published var canGoForward = false
     @Published var webIsLoading = false
     @Published var isCurrentBookmarked = false
 
-    // Library
     @Published var history: [PageVisit] = []
     @Published var bookmarks: [BookmarkItem] = []
     @Published var downloads: [DownloadRecord] = []
 
-    // Agent / chat
     @Published var turns: [ChatTurn] = []
     @Published var chatInput: String = ""
     @Published var isAgentRunning = false
@@ -252,7 +217,8 @@ final class BrowserStore: ObservableObject {
     @Published var showsChatPanel = false
     @Published var showsWelcome = false
     @Published var showsDevTools = false
-    /// Which DevTools panel tab to open ("console", "network", "elements", "storage", "debug").
+    @Published var showsCommandBar = false
+
     @Published var devToolsOpenTab: String = "console"
     @Published var showsNetworkCenter = false
     @Published var showsImageStudio = false
@@ -264,35 +230,27 @@ final class BrowserStore: ObservableObject {
     @Published var showsAutomation = false
     @Published var showsFindBar = false
     @Published var agentMode: AgentMode = .interact
-    // Auto-mode progress surfaced to the UI.
+
     @Published var taskGoal: String = ""
     @Published var agentStep: Int = 0
 
-    // Continuous task runtime (also surfaced on LAN).
     @Published var runningTask: PersistedAgentTask?
-    /// Persistent continuation instruction attached to the running task.
+
     var persistentContinuationPrompt: String = ""
-    /// Set by the STOP_SELF tool; the loop stops on the next iteration.
+
     var stopSelfRequested = false
-    /// Non-nil while a captured screenshot is waiting to be merged into the
-    /// next LLM request as vision evidence.
+
     var pendingVisionScreenshot: WebScreenshot?
 
-    // Find in page
     @Published var isFindActive = false
     @Published var findQuery: String = ""
 
-    // Internals
     var agentTask: Task<Void, Never>?
     var apiHistory: [OutboundItem] = []
-    // NOTE: internal (not `private`) because the agent loop lives in an
-    // extension declared in another file (Agent/AgentLoop.swift), and Swift's
-    // `private` scope is file-limited.
+
     var captchaPrompted = false
     var promptContinuation: CheckedContinuation<Bool, Never>?
 
-    /// Synthetic elements produced by the vision fallback (negative ids).
-    /// id -> viewport point (CSS px).
     var visionClickables: [Int: CGPoint] = [:]
 
     private enum Keys {
@@ -308,8 +266,6 @@ final class BrowserStore: ObservableObject {
         loadLibrary()
         restoreTabs()
     }
-
-    // MARK: - Tabs
 
     var activeTab: TabItem? {
         guard let id = activeTabID else { return nil }
@@ -335,8 +291,7 @@ final class BrowserStore: ObservableObject {
     func closeTab(_ id: UUID) {
         guard let idx = tabs.firstIndex(where: { $0.id == id }) else { return }
         let tab = tabs[idx]
-        // Remember closed tabs for "Reopen closed tab" (except private tabs,
-        // which must not be restored).
+
         if !tab.isPrivate {
             ClosedTabStack.push(url: tab.webView.url ?? tab.url, title: tab.title)
         }
@@ -381,9 +336,6 @@ final class BrowserStore: ObservableObject {
         _ = newTab(url: url, activate: true)
     }
 
-    // MARK: - Private tabs
-
-    /// Open a new private tab with an isolated, non-persistent data store.
     @discardableResult
     func openPrivateTab(url: URL? = nil) -> TabItem {
         let tab = newTab(url: url ?? settings.searchEngine.homeURL, activate: true, ephemeral: true)
@@ -391,19 +343,17 @@ final class BrowserStore: ObservableObject {
         return tab
     }
 
-    /// Close a single private tab and release its ephemeral data.
     func closePrivateTab(_ id: UUID) {
         guard let tab = tabs.first(where: { $0.id == id }) else { return }
         PrivateSessionManager.shared.unregister(tabID: id)
         closeTab(id)
-        _ = tab // lifetime fully handled by closeTab
+        _ = tab
     }
 
     var isActiveTabPrivate: Bool {
         activeTab?.isPrivate ?? false
     }
 
-    /// Opens a copy of the active tab (same URL, same title).
     func duplicateActiveTab() {
         guard let tab = activeTab, let url = tab.webView.url ?? tab.url else {
             _ = newTab(url: nil, activate: true)
@@ -412,8 +362,6 @@ final class BrowserStore: ObservableObject {
         let dup = newTab(url: url, activate: true)
         dup.title = tab.title
     }
-
-    // MARK: - Navigation
 
     func loadAddress(_ raw: String) {
         let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -467,8 +415,6 @@ final class BrowserStore: ObservableObject {
         wv.stopLoading()
     }
 
-    // MARK: - Find in page (native WKWebView, iOS 16+)
-
     func beginFind() {
         isFindActive = true
         findQuery = ""
@@ -477,7 +423,7 @@ final class BrowserStore: ObservableObject {
 
     func updateFindQuery(_ text: String) {
         findQuery = text
-        // An empty query clears highlights (find takes a non-optional String).
+
         let config = WKFindConfiguration()
         config.backwards = false
         activeTab?.webView.find(text, configuration: config) { _ in }
@@ -493,7 +439,7 @@ final class BrowserStore: ObservableObject {
     func endFind() {
         isFindActive = false
         findQuery = ""
-        // Clear highlights by searching for an empty string.
+
         activeTab?.webView.find("", configuration: WKFindConfiguration()) { _ in }
     }
 
@@ -502,8 +448,6 @@ final class BrowserStore: ObservableObject {
         settings.desktopModeEnabled = on
         reloadPage()
     }
-
-    // MARK: - Surface
 
     func attach(surface: WebSurfaceView) {
         self.surface = surface
@@ -518,8 +462,6 @@ final class BrowserStore: ObservableObject {
         viewportSize = size
         reconcileSurface()
     }
-
-    // MARK: - Web event handlers (called from WebCoordinator)
 
     func webChromeDidChange(tabID: UUID) {
         guard tabID == activeTabID else { return }
@@ -537,12 +479,11 @@ final class BrowserStore: ObservableObject {
         }
         if let url = finalURL, url.scheme == "http" || url.scheme == "https" {
             if tab.isPrivate {
-                // Private session: never record history or long-lived records.
+
                 PrivateSessionManager.shared.update(tabID: tabID, title: tab.title, url: url.absoluteString)
             } else {
                 recordVisit(title: tab.title.isEmpty ? url.absoluteString : tab.title, url: url)
-                // Durable browser history (searchable, deletable, survives
-                // relaunches) with session/tab metadata.
+
                 HistoryStore.shared.recordVisit(url: url,
                                                 title: tab.title,
                                                 sessionID: tab.id,
@@ -600,8 +541,6 @@ final class BrowserStore: ObservableObject {
         syncChrome()
     }
 
-    // MARK: - Bookmarks
-
     func toggleBookmarkCurrent() {
         guard let wv = activeTab?.webView, let url = wv.url, url.scheme == "http" || url.scheme == "https" else { return }
         let urlString = url.absoluteString
@@ -640,7 +579,6 @@ final class BrowserStore: ObservableObject {
         persistLibrary()
     }
 
-    /// Append imported bookmarks (dedup is done by the caller). Persists.
     func appendBookmarks(_ items: [BookmarkItem]) {
         guard !items.isEmpty else { return }
         bookmarks.insert(contentsOf: items, at: 0)
@@ -653,8 +591,6 @@ final class BrowserStore: ObservableObject {
         downloads.removeAll()
         persistLibrary()
     }
-
-    // MARK: - Downloads
 
     func removeDownload(_ record: DownloadRecord) {
         try? FileManager.default.removeItem(at: record.fileURL)
@@ -670,8 +606,6 @@ final class BrowserStore: ObservableObject {
         persistLibrary()
     }
 
-    // MARK: - Web data clearing
-
     private static let siteDataTypes: Set<String> = [
         WKWebsiteDataTypeCookies,
         WKWebsiteDataTypeLocalStorage,
@@ -681,8 +615,6 @@ final class BrowserStore: ObservableObject {
         WKWebsiteDataTypeServiceWorkerRegistrations,
     ]
 
-    /// Low-level clearing used by both the simple "clear all" action and the
-    /// per-site data manager.
     private func removeData(ofTypes types: Set<String>, for records: [WKWebsiteDataRecord], completion: (() -> Void)? = nil) {
         WKWebsiteDataStore.default().removeData(ofTypes: types, for: records) {
             completion?()
@@ -705,10 +637,6 @@ final class BrowserStore: ObservableObject {
         }
     }
 
-    // MARK: - Site data (cookies / local storage = signed-in accounts)
-
-    /// Fetches the on-device per-website data records. Records represent the
-    /// sites that have cookies / storage, which is what keeps you logged in.
     func fetchSiteData() async -> [WKWebsiteDataRecord] {
         await withCheckedContinuation { continuation in
             WKWebsiteDataStore.default().fetchDataRecords(ofTypes: Self.siteDataTypes) { records in
@@ -729,8 +657,6 @@ final class BrowserStore: ObservableObject {
             }
         }
     }
-
-    // MARK: - Library persistence
 
     private func loadLibrary() {
         let d = UserDefaults.standard
@@ -758,8 +684,7 @@ final class BrowserStore: ObservableObject {
         history.insert(PageVisit(title: title, urlString: urlString), at: 0)
         if history.count > 500 { history.removeLast(history.count - 500) }
         persistLibrary()
-        // Durable browser history is recorded in webDidFinish via
-        // HistoryStore.recordVisit (with session metadata).
+
     }
 
     private func restoreTabs() {
@@ -775,7 +700,7 @@ final class BrowserStore: ObservableObject {
                 }
             }
         } else {
-            // Legacy format: plain array of URL strings.
+
             let saved = d.stringArray(forKey: Keys.sessionTabs) ?? []
             let urls = saved.compactMap { URL(string: $0) }.prefix(8)
             if urls.isEmpty {
@@ -790,7 +715,7 @@ final class BrowserStore: ObservableObject {
     }
 
     private func persistSessionTabs() {
-        // Private tabs are not part of the restorable session.
+
         let items = tabs.filter { !$0.isPrivate }.prefix(8).map { tab in
             StoredTabSession(url: tab.webView.url ?? tab.url, title: tab.title.isEmpty ? (tab.webView.url?.host ?? "New Tab") : tab.title)
         }
@@ -798,8 +723,6 @@ final class BrowserStore: ObservableObject {
             UserDefaults.standard.set(data, forKey: Keys.sessionTabs)
         }
     }
-
-    // MARK: - Info helpers
 
     func appendInfo(_ text: String) {
         turns.append(ChatTurn(role: .assistant, kind: .info, text: text))
@@ -810,8 +733,6 @@ final class BrowserStore: ObservableObject {
         apiHistory.removeAll()
         if !isAgentRunning { agentStatus = .idle }
     }
-
-    // MARK: - Cursor helpers
 
     func showCursor(at point: CGPoint, label: String?) {
         cursor.visible = true
@@ -832,8 +753,6 @@ final class BrowserStore: ObservableObject {
         cursor.pulseID += 1
     }
 
-    /// Convert DOM (CSS pixel) coordinates into points inside the web area.
-    /// WKWebView lays out in points, so CSS px already match the overlay.
     func point(forX x: Double, y: Double) -> CGPoint {
         CGPoint(x: x, y: y)
     }

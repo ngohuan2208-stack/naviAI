@@ -1,11 +1,6 @@
 import Foundation
 import UserNotifications
 
-// MARK: - Local notifications for automation
-
-/// Sends the four lifecycle notifications (started / completed / failed /
-/// needs confirmation) through the official UNUserNotificationCenter API,
-/// strictly rate-limited so the user is never spammed.
 final class AutomationNotification {
 
     static let shared = AutomationNotification()
@@ -13,15 +8,13 @@ final class AutomationNotification {
     private init() {}
 
     private enum Limits {
-        static let minGap: TimeInterval = 20          // never two toasts closer than this
+        static let minGap: TimeInterval = 20
         static let maxPerHour = 6
     }
 
     private var lastPostDate: Date = .distantPast
     private var recentTimestamps: [Date] = []
     private let lock = NSLock()
-
-    // MARK: Permission
 
     func requestPermissionIfNeeded() {
         let center = UNUserNotificationCenter.current()
@@ -40,8 +33,6 @@ final class AutomationNotification {
         requestPermissionIfNeeded()
     }
 
-    // MARK: Posting
-
     func postLocal(title: String, body: String, identifier: String = UUID().uuidString) {
         let content = UNMutableNotificationContent()
         content.title = title
@@ -51,8 +42,6 @@ final class AutomationNotification {
         UNUserNotificationCenter.current().add(request)
     }
 
-    /// Lifecycle events use the rate limiter; immediate in-app confirmations
-    /// (e.g. asking the user to allow an action) can bypass via `force`.
     func postLifecycle(event: LifecycleEvent, taskName: String, detail: String? = nil, force: Bool = false) {
         guard shouldThrottle(taskName: taskName, event: event) || force else { return }
         let content = UNMutableNotificationContent()
@@ -79,10 +68,8 @@ final class AutomationNotification {
         case started, completed, failed, needsConfirmation
     }
 
-    // MARK: Throttling
-
     private func shouldThrottle(taskName: String, event: LifecycleEvent) -> Bool {
-        // Confirmation requests are important; still capped by the hourly cap.
+
         lock.lock()
         defer { lock.unlock() }
 

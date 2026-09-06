@@ -1,11 +1,6 @@
 import Foundation
 import Combine
 
-// MARK: - Pairing
-
-/// Deviceless PIN pairing. Navi shows a 6-digit code that expires after a few
-/// minutes; the remote client enters it once and receives a revocable session
-/// token. PINs are stored hashed only.
 @MainActor
 final class LANPairing: ObservableObject {
 
@@ -16,7 +11,6 @@ final class LANPairing: ObservableObject {
 
     @Published private(set) var isPaired = false
 
-    /// 5 minutes is plenty of time to type a 6-digit PIN.
     private let pinLifetime: TimeInterval = 5 * 60
 
     enum Keys {
@@ -35,7 +29,6 @@ final class LANPairing: ObservableObject {
         return "Expires in \(secs / 60)m \(secs % 60)s"
     }
 
-    /// Generate a fresh PIN (invalidates the previous one).
     func generatePIN() {
         let code = LANSecurity.randomPIN()
         pin = code
@@ -44,9 +37,6 @@ final class LANPairing: ObservableObject {
         UserDefaults.standard.set(pinExpiresAt, forKey: Keys.pinExpiry)
     }
 
-    /// Validate a client-submitted PIN. Consumes one failed attempt via the
-    /// caller's rate limiter. On success pairing state flips and the server
-    /// issues a token.
     func verify(_ candidate: String) -> Bool {
         guard let hash = UserDefaults.standard.string(forKey: Keys.pinHash) else { return false }
         guard let expires = UserDefaults.standard.object(forKey: Keys.pinExpiry) as? Date,
@@ -57,12 +47,11 @@ final class LANPairing: ObservableObject {
         }
         guard LANSecurity.constantTimeEquals(hash, LANSecurity.hash(candidate)) else { return false }
         isPaired = true
-        // One-time use: rotation after a successful pair keeps replay useless.
+
         rotateAfterPair()
         return true
     }
 
-    /// Invalidate the current PIN.
     func rotateAfterPair() {
         pin = ""
         pinExpiresAt = nil

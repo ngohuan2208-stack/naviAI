@@ -1,21 +1,17 @@
 import Foundation
 
-// MARK: - Safari import
-
-/// Parses the two formats a user can legally get out of Safari / iOS:
-///  1. Safari's HTML bookmark export (Safari → File → Export Bookmarks),
-///  2. Navi's own JSON export.
-///
-/// It only touches files the user explicitly picked with the system document
-/// picker. It NEVER opens Safari's private databases or bypasses the sandbox.
 enum SafariImport {
 
-    /// Parse { "bookmarks": [...] } or bare [...] JSON.
     static func parseJSON(_ data: Data) -> [ImportedBookmark]? {
-        guard let root = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
-            return nil
+        guard let root = try? JSONSerialization.jsonObject(with: data) else { return nil }
+        let raw: [[String: Any]]?
+        if let dict = root as? [String: Any] {
+            raw = dict["bookmarks"] as? [[String: Any]] ?? dict["items"] as? [[String: Any]]
+        } else if let array = root as? [[String: Any]] {
+            raw = array
+        } else {
+            raw = nil
         }
-        let raw = root["bookmarks"] as? [[String: Any]] ?? root["items"] as? [[String: Any]]
         guard let list = raw else { return nil }
         var out: [ImportedBookmark] = []
         for entry in list {
@@ -28,7 +24,6 @@ enum SafariImport {
         return out.isEmpty ? nil : out
     }
 
-    /// Parse a Netscape bookmark HTML export (Safari's export format).
     static func parseBookmarksHTML(_ html: String) -> [ImportedBookmark] {
         var out: [ImportedBookmark] = []
         let pattern = "<DT><A[^>]*HREF=\"([^\"]+)\"[^>]*>(.*?)</A>"

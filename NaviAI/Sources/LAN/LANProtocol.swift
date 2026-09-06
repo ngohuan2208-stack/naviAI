@@ -1,42 +1,26 @@
 import Foundation
 
-// MARK: - Versioned LAN protocol
-
-/// The LAN wire protocol between Navi (server) and remote web clients.
-///
-/// Every message is a JSON object envelope:
-///   { "p": protocolVersion, "t": type, "s": seq, "ts": timestamp, "d": payload }
-///
-/// The protocol is versioned so incompatible clients are rejected at handshake
-/// instead of breaking at runtime. Payloads are capped on both directions.
 enum LANProtocol {
 
-    /// Bumped when the wire format or state schema changes incompatibly.
     static let protocolVersion = 2
 
-    /// Hard caps (defence in depth — prevents memory blow-up from a malicious
-    /// or buggy client).
     static let maxInboundMessageBytes = 128 * 1024
     static let maxOutboundMessageBytes = 1 * 1024 * 1024
     static let maxHTTPBodyBytes = 256 * 1024
 
-    // Outbound event types (server → client).
     enum EventType {
-        static let state = "state"                 // full or incremental state
-        static let stateRestore = "state.restore"  // full sync after (re)connect
-        static let activity = "activity"           // new activity feed item
+        static let state = "state"
+        static let stateRestore = "state.restore"
+        static let activity = "activity"
         static let error = "error"
         static let pong = "pong"
     }
 
-    // Inbound command types (client → server).
     enum CommandType {
         static let ping = "ping"
-        static let command = "command"             // execute a browser command
-        static let subscribe = "subscribe"         // change event subscription
+        static let command = "command"
+        static let subscribe = "subscribe"
     }
-
-    // MARK: Envelope
 
     struct Message {
         var type: String
@@ -67,14 +51,11 @@ enum LANProtocol {
         return Message(type: type, payload: payload, seq: seq)
     }
 
-    /// Validate protocol version in the envelope (nil = intolerant).
     static func checkVersion(_ data: Data) -> Bool {
         guard let obj = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any] else { return false }
         return (obj["p"] as? Int) == protocolVersion
     }
 }
-
-// MARK: - Errors
 
 enum LANError: LocalizedError {
     case serverStopped

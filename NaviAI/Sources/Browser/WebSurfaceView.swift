@@ -1,9 +1,6 @@
 import UIKit
 import WebKit
 
-/// Plain UIView that hosts every tab's WKWebView as subviews. Only the active
-/// tab is visible/hit-testable; the others stay alive so their state, cookies
-/// and JS are preserved while switching back and forth.
 final class WebSurfaceView: UIView {
     weak var store: BrowserStore?
 
@@ -17,7 +14,6 @@ final class WebSurfaceView: UIView {
         }
     }
 
-    /// Bring the subview graph in sync with the store's tabs.
     func reconcile(tabs: [TabItem], activeID: UUID?) {
         let owned = Set(tabs.map { ObjectIdentifier($0.coordinator.webView) })
         for sub in subviews {

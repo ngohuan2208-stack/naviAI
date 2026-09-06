@@ -1,22 +1,14 @@
 import Foundation
 import Combine
 
-// MARK: - Search provider abstraction
-
-/// A search capability the AI can call. Separated from both the browser UI
-/// search bar (which uses `SearchEngine` in SettingsStore) and the agent so
-/// extra providers (API-backed, meta-search, others) can be added later.
 protocol SearchProviding {
     var id: String { get }
     var label: String { get }
-    /// Whether this provider can return results directly (API) or must be
-    /// navigated to (HTML results page read by the agent).
+
     var isHierarchical: Bool { get }
     func resultsURL(for query: String) -> URL?
 }
 
-/// Concrete HTML-based search engines. The agent opens the results URL and
-/// reads the page — reliable and provider-agnostic.
 enum SearchProviderKind: String, CaseIterable, Identifiable, SearchProviding {
     case duckduckgo
     case google
@@ -49,10 +41,6 @@ enum SearchProviderKind: String, CaseIterable, Identifiable, SearchProviding {
     }
 }
 
-// MARK: - Search manager
-
-/// Resolves "which search provider the AI uses" (defaults to DuckDuckGo). The
-/// browser UI keeps its own address-bar engine; the AI uses this one.
 @MainActor
 final class SearchManager: ObservableObject {
 
@@ -80,10 +68,6 @@ final class SearchManager: ObservableObject {
     }
 }
 
-// MARK: - Search result model
-
-/// A lightweight parsed search result (title, url, snippet). The agent can
-/// fill this from the DOM of a results page.
 struct SearchResult: Identifiable, Equatable {
     let id = UUID()
     var title: String

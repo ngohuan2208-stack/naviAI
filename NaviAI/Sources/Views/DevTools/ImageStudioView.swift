@@ -1,9 +1,5 @@
 import SwiftUI
 
-// MARK: - Image studio (minimal surface)
-
-/// Small studio for the image pipeline: prompt box + result gallery.
-/// Uses ImagePipeline.shared (provider/key injected by AppModel).
 struct ImageStudioView: View {
     private struct ResultItem: Identifiable {
         let id = UUID()

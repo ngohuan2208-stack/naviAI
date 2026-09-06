@@ -1,15 +1,12 @@
 import SwiftUI
 
-// MARK: - NaviAI mouse mascot (pure SwiftUI vector)
-
 struct MouseMascotView: View {
-    /// When `true` the mouse squashes down to look like it is physically
-    /// pressing a button.
+
     var pressing: Bool = false
 
     var body: some View {
         ZStack {
-            // Ears
+
             Circle()
                 .fill(Color.accentColor.opacity(0.9))
                 .frame(width: 14, height: 14)
@@ -18,17 +15,17 @@ struct MouseMascotView: View {
                 .fill(Color.accentColor.opacity(0.9))
                 .frame(width: 14, height: 14)
                 .offset(x: 7, y: -13)
-            // Body
+
             Capsule()
                 .fill(Color.accentColor.gradient)
                 .frame(width: 24, height: 30)
                 .offset(y: 2)
-            // Belly
+
             Capsule()
                 .fill(.white.opacity(0.25))
                 .frame(width: 13, height: 17)
                 .offset(y: 6)
-            // Eyes (blink when pressing)
+
             Group {
                 Circle().fill(.white).frame(width: 6, height: 6).offset(x: -5, y: -5)
                 Circle().fill(.white).frame(width: 6, height: 6).offset(x: 5, y: -5)
@@ -36,7 +33,7 @@ struct MouseMascotView: View {
                 Circle().fill(.black).frame(width: 2.6, height: 2.6).offset(x: 4.8, y: -4.6)
             }
             .scaleEffect(x: 1.0, y: pressing ? 0.35 : 1.0, anchor: .center)
-            // Nose + whiskers
+
             RoundedRectangle(cornerRadius: 1.2)
                 .fill(.pink)
                 .frame(width: 5, height: 3.2)
@@ -51,8 +48,6 @@ struct MouseMascotView: View {
         .accessibilityHidden(true)
     }
 }
-
-// MARK: - Cursor overlay drawn on top of the web area
 
 struct AICursorOverlay: View {
     @ObservedObject var store: BrowserStore
@@ -98,7 +93,6 @@ struct AICursorOverlay: View {
         }
     }
 
-    /// A soft filled ripple + a crisp stroke ring, expanding outward together.
     private var ripples: some View {
         ZStack {
             Circle()
@@ -125,8 +119,6 @@ struct AICursorOverlay: View {
         }
     }
 }
-
-// MARK: - Little mouse used in branding / welcome
 
 struct MascotLogoView: View {
     var size: CGFloat = 72

@@ -1,11 +1,7 @@
 import Foundation
 import UIKit
 
-// MARK: - Agent loop (extension of BrowserStore)
-
 extension BrowserStore {
-
-    // MARK: Public entry points (used by the chat bar)
 
     func submitPrompt(_ rawText: String) {
         let text = rawText.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -32,7 +28,7 @@ extension BrowserStore {
 
     func stopAgent() {
         agentTask?.cancel()
-        // Release any pending confirmation/captcha dialog.
+
         resolvePrompt(false)
         if isAgentRunning {
             isAgentRunning = false
@@ -53,8 +49,6 @@ extension BrowserStore {
             activePrompt = nil
         }
     }
-
-    // MARK: Tool schemas
 
     func agentToolSpecs() -> [AgentToolSpec] {
         func str(_ title: String, _ desc: String) -> [String: Any] {
@@ -119,15 +113,11 @@ extension BrowserStore {
                           ]))
         ]
 
-        // View mode is strictly read-only: only expose page-inspection tools so
-        // the model physically cannot interact with the page.
         if !agentMode.permitsInteraction {
             return all.filter { ["readPage", "findText"].contains($0.name) }
         }
         return all
     }
-
-    // MARK: Conversation helpers
 
     func activePageLine() -> String {
         guard let tab = activeTab else { return "No tab open." }
@@ -141,8 +131,6 @@ extension BrowserStore {
         return "Open tabs (index: title):\n" + (list.isEmpty ? "none" : list.joined(separator: "\n"))
     }
 
-    // MARK: The loop
-
     private func runAgentSession() async {
         guard let config = providers.activeProvider else {
             finishWith(info: "No AI provider selected. Choose one in Settings.")
@@ -153,7 +141,6 @@ extension BrowserStore {
             return
         }
 
-        // Continuous-run setup: durable task state + safety watchdog.
         let task: PersistedAgentTask
         if let existing = runningTask {
             task = existing
@@ -179,7 +166,7 @@ extension BrowserStore {
                 finishTask(reason: .cancelled)
                 return
             }
-            // Safety watchdog fires first — the AI can never disable it.
+
             if stopSelfRequested {
                 finishTask(reason: .selfStopped)
                 return
@@ -189,7 +176,6 @@ extension BrowserStore {
                 return
             }
 
-            // CAPTCHA guard: never try to solve it, always pause for the human.
             if !captchaPrompted, let signals = try? await fetchSignals(),
                signals.hasCaptchaFrame || !signals.bodyHint.isEmpty {
                 captchaPrompted = true
@@ -207,9 +193,6 @@ extension BrowserStore {
 
             agentStatus = .thinking
 
-            // Build the system + conversation for this step. The page context
-            // comes from the realtime visible-context pipeline (compressed,
-            // deduplicated, cached) — never a raw DOM dump.
             let pageContext = await visiblePageContextText() + "\n" + tabListLine()
             let sys = agentSystemPrompt(pageContext: pageContext)
 
@@ -217,11 +200,9 @@ extension BrowserStore {
             if let task = runningTask, !task.goal.isEmpty {
                 history.append(.system("TASK OBJECTIVE (persistent): \(task.goal)\n\(AgentContinuation.compactState(of: task))"))
             }
-            // Context compression: when the transcript grows too large the
-            // objective + task state are pinned and the tail trimmed instead of
-            // resending the entire conversation.
+
             history.append(contentsOf: AgentContinuation.trimmed(history: apiHistory, task: runningTask))
-            // Merge a fresh web screenshot as vision evidence when supported.
+
             if let shot = pendingVisionScreenshot, isVisionFallbackAvailable {
                 history.append(.userVision(
                     text: "Screenshot evidence of the current page (captured at \(shot.capturedAt)). Use it to understand what the user sees.",
@@ -243,8 +224,6 @@ extension BrowserStore {
                     return
                 }
 
-                // If the model produced text together with tool calls, remember
-                // it but continue executing the calls.
                 if !reply.toolCalls.isEmpty {
                     for call in reply.toolCalls {
                         if Task.isCancelled { finishTask(reason: .cancelled); return }
@@ -279,7 +258,6 @@ extension BrowserStore {
                     continue
                 }
 
-                // Final answer (no tool calls): the objective is satisfied.
                 if let text = reply.text, !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                     let answer = text.trimmingCharacters(in: .whitespacesAndNewlines)
                     turns.append(ChatTurn(role: .assistant, kind: .text, text: answer))
@@ -293,7 +271,6 @@ extension BrowserStore {
                     return
                 }
 
-                // Nothing useful to do.
                 turns.append(ChatTurn(role: .assistant, kind: .info, text: "AI needs clarification. Please rephrase or be more specific."))
                 agentStatus = .error("AI needs clarification")
                 finishTask(reason: .unrecoverableError)
@@ -392,11 +369,6 @@ extension BrowserStore {
         }
     }
 
-    // MARK: Continuous task API
-
-    /// Start a continuous (multi-step, self-driving) agent task. The loop keeps
-    /// observing → thinking → acting until success, STOP_SELF, a watchdog
-    /// stop, user stop, timeout, max steps or an unrecoverable error.
     func startContinuousTask(goal: String, continuationPrompt: String = "") {
         let text = goal.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !text.isEmpty else { return }
@@ -423,8 +395,6 @@ extension BrowserStore {
         agentTask = handle
     }
 
-    /// Resume a persisted task (restored by AgentTaskPersistence). Returns true
-    /// when a task was restored and is now running.
     @discardableResult
     func resumeContinuousTask() -> Bool {
         guard let persisted = AgentTaskPersistence.shared.load() else { return false }
@@ -447,9 +417,6 @@ extension BrowserStore {
         return true
     }
 
-    /// Suspend the current task (state kept for resume). Called when the app
-    /// goes to background — iOS cannot promise background execution, so the
-    /// honest approach is to persist and offer resume when active again.
     func suspendContinuousTask() {
         guard var task = runningTask else { return }
         task.status = .suspended
@@ -459,12 +426,9 @@ extension BrowserStore {
         AgentTaskPersistence.shared.save(task)
     }
 
-    /// Abandon the persisted task (explicit stop / user dismissal).
     func clearPersistedTask() {
         AgentTaskPersistence.shared.clear()
     }
-
-    // MARK: Continuous task helpers
 
     private func persistTask() {
         guard let task = runningTask else { return }
@@ -520,7 +484,6 @@ extension BrowserStore {
         LANActivityCenter.shared.addFeed(message)
     }
 
-    /// Watchdog bookkeeping after every tool execution.
     private func trackWatchdog(for call: ToolCallRequest, result: String) {
         let args = arguments(from: call.argumentsJSON)
         var signature = call.name
@@ -547,8 +510,6 @@ extension BrowserStore {
         AgentWatchdog.shared.recordAction(signature: signature, title: describeAction(call))
     }
 
-    /// Realtime visible page context (compressed + deduplicated by the
-    /// pipeline) used in the system prompt for every thinking step.
     private func visiblePageContextText() async -> String {
         guard let coordinator = activeCoordinator else {
             return "Page context: no active tab."

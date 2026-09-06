@@ -1,13 +1,7 @@
 import Foundation
 
-// MARK: - Secret redaction
-
-/// Central place that scrubs secrets out of anything destined for
-/// DevTools consoles, logs, history, or screenshots.
-/// DevTools NEVER displays passwords, tokens, cookies or auth headers as-is.
 enum Redactor {
 
-    /// Keys whose values are always masked (case-insensitive match).
     private static let sensitiveKeys: Set<String> = [
         "password", "pass", "pwd", "secret", "token", "access_token",
         "refresh_token", "id_token", "api_key", "apikey", "authorization",
@@ -16,7 +10,6 @@ enum Redactor {
         "csrf", "client_secret", "private_key", "credential", "credentials"
     ]
 
-    /// URL query parameters that are always masked.
     private static let sensitiveQueryKeys: Set<String> = [
         "token", "access_token", "refresh_token", "apikey", "api_key",
         "key", "password", "secret", "auth", "sessionid", "sid", "sig"
@@ -24,15 +17,12 @@ enum Redactor {
 
     private static let mask = "••••••"
 
-    /// Static per-run prefix of recognizable secret shapes.
-    /// JWT:  eyJ... . eyJ... . sig
     private static let jwtPattern = "eyJ[A-Za-z0-9_-]{8,}\\.[A-Za-z0-9_-]{8,}\\.[A-Za-z0-9_-]{4,}"
-    /// Bearer / Basic headers.
+
     private static let bearerPattern = "(?i)(bearer|basic)[ ]+[A-Za-z0-9._~+/=-]{12,}"
-    /// Long hex secrets (≥24 chars) — e.g. API keys.
+
     private static let hexPattern = "\\b[a-fA-F0-9]{24,}\\b"
 
-    /// Mask a value if its KEY looks sensitive.
     static func redact(key: String, value: String) -> String {
         guard isSensitiveKey(key) else { return value }
         return mask
@@ -47,7 +37,6 @@ enum Redactor {
             || lowered.contains("cookie")
     }
 
-    /// Redact an entire URL: mask sensitive query values, keep the rest.
     static func redactURL(_ url: URL) -> String {
         guard var comps = URLComponents(url: url, resolvingAgainstBaseURL: false) else {
             return url.absoluteString
@@ -62,7 +51,6 @@ enum Redactor {
         return comps.string ?? url.absoluteString
     }
 
-    /// Redact an HTTP header dictionary.
     static func redactHeaders(_ headers: [String: String]) -> [String: String] {
         var out: [String: String] = [:]
         for (key, value) in headers {
@@ -71,14 +59,12 @@ enum Redactor {
         return out
     }
 
-    /// Redact an HTTP request/response body. Bodies are shown TRUNCATED —
-    /// they are for orientation, not for dumping payloads into the log.
     static func redactBody(_ body: String, maxLen: Int = 2000) -> String {
         var text = body
         text = text.replacingOccurrences(of: jwtPattern, with: mask, options: .regularExpression)
         text = text.replacingOccurrences(of: bearerPattern, with: mask, options: .regularExpression)
         text = text.replacingOccurrences(of: hexPattern, with: mask, options: .regularExpression)
-        // "password":"value" JSON-ish shapes.
+
         text = text.replacingOccurrences(
             of: "(?i)(\"(?:password|pass|secret|token|api[_-]?key|authorization)\"\\s*:\\s*\")([^\"]*)(\")",
             with: "$1\(mask)$3",
@@ -89,7 +75,6 @@ enum Redactor {
         return text
     }
 
-    /// Redact free-form log text (console output, notes).
     static func redactText(_ text: String) -> String {
         var t = text
         t = t.replacingOccurrences(of: jwtPattern, with: mask, options: .regularExpression)
@@ -98,7 +83,6 @@ enum Redactor {
         return t
     }
 
-    /// Full outgoing-request scrub: url + headers + body.
     static func redactRequest(url: URL?, headers: [String: String]?, body: String?) ->
         (url: String, headers: [String: String], body: String) {
         let u = url.map { redactURL($0) } ?? "—"

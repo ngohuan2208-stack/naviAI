@@ -1,15 +1,11 @@
 import Foundation
 import Combine
 
-// MARK: - Memory tiers
-
-/// The four tiers of the memory system. Higher tiers are longer-lived and
-/// user-managed; short-term context is derived and never persisted by itself.
 enum MemoryTier: String, Codable, CaseIterable, Identifiable {
-    case shortTerm      // ephemeral per-session cache (not persisted)
-    case session        // this app session
-    case conversation   // per-conversation memory / summary
-    case longTerm       // user-visible durable preferences & recall
+    case shortTerm
+    case session
+    case conversation
+    case longTerm
 
     var id: String { rawValue }
 
@@ -23,8 +19,6 @@ enum MemoryTier: String, Codable, CaseIterable, Identifiable {
     }
 }
 
-// MARK: - Memory item
-
 struct MemoryItem: Codable, Identifiable, Equatable {
     var id: UUID = UUID()
     var tier: MemoryTier
@@ -35,10 +29,6 @@ struct MemoryItem: Codable, Identifiable, Equatable {
     var isPrivate: Bool = false
 }
 
-// MARK: - Memory manager
-
-/// Central manager for all memory tiers. Private-session material is marked
-/// `isPrivate` and skipped when building long-term context by default.
 @MainActor
 final class MemoryManager: ObservableObject {
 
@@ -46,9 +36,9 @@ final class MemoryManager: ObservableObject {
 
     @Published private(set) var longTerm: [MemoryItem] = []
     @Published private(set) var session: [MemoryItem] = []
-    /// In-memory short-term key/value (never persisted, per page/tab).
+
     private var shortTerm: [MemoryItem] = []
-    /// Per-conversation summaries keyed by conversation id.
+
     private var conversationSummaries: [UUID: String] = [:]
 
     private let url: URL
@@ -80,8 +70,6 @@ final class MemoryManager: ObservableObject {
         }
     }
 
-    // MARK: Write
-
     func remember(_ value: String, key: String, tier: MemoryTier, isPrivate: Bool = false) {
         let item = MemoryItem(tier: tier, key: key, value: value, isPrivate: isPrivate)
         switch tier {
@@ -93,7 +81,7 @@ final class MemoryManager: ObservableObject {
             session.append(item)
             save()
         case .conversation:
-            break // handled via conversationSummaries below
+            break
         case .longTerm:
             longTerm.removeAll { $0.key == key }
             longTerm.append(item)
@@ -101,12 +89,9 @@ final class MemoryManager: ObservableObject {
         }
     }
 
-    /// Conversation-scoped memory: a compressed summary of a conversation.
     func rememberConversation(_ summary: String, for id: UUID) {
         conversationSummaries[id] = String(summary.prefix(4000))
     }
-
-    // MARK: Read
 
     func read(key: String, tier: MemoryTier) -> String? {
         switch tier {
@@ -121,7 +106,6 @@ final class MemoryManager: ObservableObject {
         conversationSummaries[id]
     }
 
-    /// All durable memory, excluding private items (unless includePrivate).
     func all(itemsFor tier: MemoryTier? = nil, includePrivate: Bool = false) -> [MemoryItem] {
         var source: [MemoryItem]
         switch tier {
@@ -134,8 +118,6 @@ final class MemoryManager: ObservableObject {
         return includePrivate ? source : source.filter { !$0.isPrivate }
     }
 
-    /// Build the context block handed to the model from long-term + session
-    /// memory (compact, leak-safe).
     func memoryContext(includePrivate: Bool = false) -> String {
         let parts = all(itemsFor: .longTerm, includePrivate: includePrivate)
             + all(itemsFor: .session, includePrivate: includePrivate)
@@ -143,8 +125,6 @@ final class MemoryManager: ObservableObject {
         let lines = parts.map { "\($0.key): \($0.value)" }
         return "[Memory]\n" + lines.joined(separator: "\n")
     }
-
-    // MARK: Delete / clear
 
     func forget(key: String, tier: MemoryTier) {
         switch tier {

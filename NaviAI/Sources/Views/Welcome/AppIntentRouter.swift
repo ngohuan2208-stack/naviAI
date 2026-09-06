@@ -1,9 +1,5 @@
 import Foundation
 
-// MARK: - App intents (natural language → real actions)
-
-/// One routable intent: id, sample phrasings, and the action it performs.
-/// All actions run on the MainActor and only touch public stores.
 struct AppIntent: Identifiable {
     enum ID: String {
         case navigate, searchWeb, newTab, newPrivateTab, reopenClosed
@@ -17,12 +13,8 @@ struct AppIntent: Identifiable {
     let run: @MainActor (AppModel, String) -> Void
 }
 
-// MARK: - Router
-
 enum AppIntentRouter {
 
-    /// Detect the intent behind a free-form command. Returns nil when the text
-    /// looks like a plain question/URL — the caller falls back to chat/search.
     static func detect(text: String) -> AppIntent? {
         let t = text.lowercased().trimmingCharacters(in: .whitespacesAndNewlines)
         guard !t.isEmpty else { return nil }
@@ -37,7 +29,6 @@ enum AppIntentRouter {
         return nil
     }
 
-    /// Strips the trigger phrase, returning the argument tail (may be empty).
     static func argument(after phrase: String, in text: String) -> String {
         guard !phrase.isEmpty else { return text }
         let lowered = text.lowercased()
@@ -47,8 +38,6 @@ enum AppIntentRouter {
         return tail.trimmingCharacters(in: .whitespaces)
     }
 }
-
-// MARK: - Intent registry
 
 extension AppIntentRouter {
 
@@ -117,7 +106,6 @@ extension AppIntentRouter {
         ]
     }
 
-    /// Which trigger phrase actually matched this text (for arg stripping).
     static func firstPhrase(matching text: String, from ids: [AppIntent.ID]) -> String? {
         let lowered = text.lowercased()
         for intent in intents where ids.contains(intent.id) {
@@ -129,14 +117,10 @@ extension AppIntentRouter {
     }
 }
 
-// MARK: - Notification names used by the router
-
 extension Notification.Name {
     static let imageStudioGenerateRequested = Notification.Name("naviai.imageStudio.generateRequested")
     static let researchStartRequested = Notification.Name("naviai.research.startRequested")
 }
-
-// MARK: - Surface intents (DevTools, History, Network, …)
 
 extension AppIntentRouter {
 
@@ -198,7 +182,6 @@ extension AppIntentRouter {
         ]
     }
 
-    /// Full registry: actions first, then surface openers.
     static var allIntents: [AppIntent] {
         intents + surfaceIntents
     }

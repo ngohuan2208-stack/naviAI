@@ -30,8 +30,6 @@ struct BrowserHomeView: View {
     }
 }
 
-// MARK: - Main content
-
 private struct BrowserContentView: View {
     @ObservedObject var store: BrowserStore
     @EnvironmentObject var app: AppModel
@@ -64,6 +62,9 @@ private struct BrowserContentView: View {
         }
         .sheet(item: $activeSheet) { content in
             sheetView(for: content)
+        }
+        .sheet(isPresented: $store.showsCommandBar) {
+            sheetView(for: .commandBar)
         }
         .sheet(isPresented: $store.showsChatPanel) {
             AIChatPanelSheet(store: store)
@@ -111,8 +112,6 @@ private struct BrowserContentView: View {
         }
         .environmentObject(app)
     }
-
-    // MARK: Toolbar
 
     private var toolbar: some View {
         HStack(spacing: 10) {
@@ -291,8 +290,6 @@ private struct BrowserContentView: View {
         .disabled(!enabled)
     }
 
-    // MARK: Web area + overlays
-
     private var webArea: some View {
         GeometryReader { geo in
             ZStack(alignment: .topLeading) {
@@ -355,8 +352,6 @@ private struct BrowserContentView: View {
     }
 }
 
-// MARK: - SwiftUI wrapper around the web surface
-
 private struct WebKitSurfaceView: UIViewRepresentable {
     let store: BrowserStore
 
@@ -372,8 +367,6 @@ private struct WebKitSurfaceView: UIViewRepresentable {
         store.reconcileSurface()
     }
 }
-
-// MARK: - Prompt / confirmation card
 
 struct PromptCard: View {
     let prompt: UserPrompt
@@ -425,8 +418,6 @@ struct PromptCard: View {
         .animation(.spring(response: 0.4, dampingFraction: 0.78), value: prompt.id)
     }
 }
-
-// MARK: - Bottom AI message bar
 
 struct AIChatBarView: View {
     @ObservedObject var store: BrowserStore
@@ -515,8 +506,6 @@ struct AIChatBarView: View {
     }
 }
 
-// MARK: - Tab strip
-
 struct TabStripView: View {
     @ObservedObject var store: BrowserStore
 
@@ -574,8 +563,6 @@ private struct TabChipView: View {
     }
 }
 
-// MARK: - Find in page bar
-
 struct FindBarView: View {
     @ObservedObject var store: BrowserStore
     @FocusState private var focused: Bool
@@ -630,8 +617,6 @@ struct FindBarView: View {
         .onAppear { focused = true }
     }
 }
-
-// MARK: - Agent mode picker (toolbar: [View] [Interact] [Auto])
 
 struct AgentModePicker: View {
     @ObservedObject var store: BrowserStore

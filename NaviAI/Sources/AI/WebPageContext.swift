@@ -1,7 +1,5 @@
 import Foundation
 
-// MARK: - Deep page structure (mirror of __navi.deepStructure() JSON)
-
 struct PageLinkInfo: Codable, Equatable {
     var text: String
     var href: String
@@ -25,7 +23,6 @@ struct PageTableInfo: Codable, Equatable {
     var rows: [[String]]
 }
 
-/// Real semantic structure of a page, gathered in-page by injected JS.
 struct WebPageStructure: Codable, Equatable {
     var url: String
     var title: String
@@ -42,10 +39,6 @@ struct WebPageStructure: Codable, Equatable {
     var mainContent: String
 }
 
-// MARK: - Enriched page context
-
-/// A memory-friendly, token-optimised view of a page the agent can actually
-/// reason over. Holds source metadata plus lazily computed, compressed text.
 struct WebPageContext: Equatable {
     let url: String
     let title: String
@@ -61,7 +54,6 @@ struct WebPageContext: Equatable {
     let bodyText: String
     let capturedAt: Date
 
-    /// Quick identity used for dedup/caching.
     var cacheKey: String { url }
     var contentHash: Int {
         var hasher = Hasher()
@@ -74,8 +66,6 @@ struct WebPageContext: Equatable {
     var host: String { URL(string: url)?.host ?? url }
     var titleOrHost: String { title.isEmpty ? host : title }
 
-    /// Deep read: everything relevant, already compressed. Used by Deep Read
-    /// and Research so the model never sees a raw full DOM dump.
     func deepReadText(maxChars: Int = 12000) -> String {
         var parts: [String] = []
         if !title.isEmpty { parts.append("Title: \(title)") }
@@ -115,14 +105,12 @@ struct WebPageContext: Equatable {
         return limit(parts.filter { !$0.isEmpty }.joined(separator: "\n\n"), maxChars)
     }
 
-    /// Compact one-line summary for list/compare contexts.
     var summary: String {
         let firstP = paragraphs.first ?? ""
         let excerpt = firstP.count > 160 ? String(firstP.prefix(160)) + "…" : firstP
         return "[\(titleOrHost)] \(excerpt)"
     }
 
-    /// Extract titles/URLs for source attribution.
     var source: (title: String, url: String) { (titleOrHost, url) }
 
     private func limit(_ s: String, _ n: Int) -> String {

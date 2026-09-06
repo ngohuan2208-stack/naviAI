@@ -1,13 +1,9 @@
 import Foundation
 
-// MARK: - Stop reasons
-
-/// Why an agent run ended. Used for the in-app Activity Center, the LAN
-/// realtime feed and the web UI.
 enum AgentStopReason: String, Codable, Equatable {
     case success
     case userStopped
-    case selfStopped        // AI called STOP_SELF
+    case selfStopped
     case maxSteps
     case timeout
     case repeatedAction
@@ -48,34 +44,21 @@ enum AgentStopReason: String, Codable, Equatable {
     }
 }
 
-// MARK: - Watchdog
-
-/// Safety watchdog for continuous agent execution. Detects runaway behaviour:
-/// infinite loops, repeated identical actions, repeated navigation failures,
-/// excessive action counts, timeouts and abnormal usage. The agent can never
-/// disable it — it is enforced by the host on every loop iteration.
 @MainActor
 final class AgentWatchdog {
 
     static let shared = AgentWatchdog()
 
-    /// Enabled state lives in SettingsStore (default on) and is never exposed
-    /// to the model — nothing in the agent prompt can turn it off.
     var isEnabled = true
 
-    /// Hard cap on actions per run (overrides settings, cannot be raised by AI).
     var maxSteps = 80
 
-    /// Abort after a single run exceeds this wall-clock budget.
     var maxDuration: TimeInterval = 10 * 60
 
-    /// Same signature repeated this many times in a row ⇒ repeated action.
     var maxRepeatedActions = 4
 
-    /// Navigation tools failing this many times in a row ⇒ navigation failure.
     var maxNavigationFailures = 4
 
-    /// Consecutive LLM rounds without a *completed* action ⇒ no progress.
     var maxNoProgressRounds = 5
 
     private(set) var lastSignature = ""
@@ -88,8 +71,6 @@ final class AgentWatchdog {
 
     private init() {}
 
-    // MARK: Recording
-
     func reset() {
         lastSignature = ""
         repeatedCount = 0
@@ -100,9 +81,6 @@ final class AgentWatchdog {
         startedAt = Date()
     }
 
-    /// Call after an action executed. `signature` identifies the action
-    /// (tool name + key arguments). `succeeded` means the tool explicitly
-    /// reported a successful, meaningful outcome (not "nothing found").
     func recordAction(signature: String, title: String) {
         allActionCount += 1
         lastActionDate = Date()
@@ -116,30 +94,23 @@ final class AgentWatchdog {
         let _ = title
     }
 
-    /// Call for navigation tools that returned an explicit failure.
     func recordNavigationFailure() {
         navigationFailures += 1
         noProgressRounds += 1
     }
 
-    /// Call when a tool returned a benign "nothing found / no result".
     func recordNoProgress() {
         noProgressRounds += 1
     }
 
-    /// Call when the model produced text without any tool call but still wants
-    /// to keep going (unusual — usually the sign of a finishing model).
     func recordRoundsWithoutAction() {
         noProgressRounds += 1
     }
 
-    // MARK: Evaluation
-
-    /// Returns a stop reason when the run must be stopped, `nil` otherwise.
     func evaluate() -> AgentStopReason? {
         guard isEnabled else { return nil }
         let now = Date()
-        if let last = lastActionDate, now.timeIntervalSince(last) > maxDuration {
+        if now.timeIntervalSince(startedAt) > maxDuration {
             return .timeout
         }
         if noProgressRounds >= maxNoProgressRounds {
@@ -154,7 +125,6 @@ final class AgentWatchdog {
         return nil
     }
 
-    /// True when the step budget is exhausted.
     func isOverStepLimit(_ steps: Int) -> Bool {
         steps >= maxSteps
     }

@@ -2,14 +2,6 @@ import Foundation
 import WebKit
 import UIKit
 
-// MARK: - Vision fallback
-//
-// Used only when the DOM snapshot finds nothing actionable AND the user enabled
-// vision fallback AND the selected model advertises image support. It captures a
-// screenshot, sends it to the provider and asks for normalised tap targets.
-// These are returned to the agent as negative elementIds and executed through
-// coordinate clicks (document.elementFromPoint) - never through DOM ids.
-
 extension BrowserStore {
 
     var isVisionFallbackAvailable: Bool {
@@ -17,7 +9,6 @@ extension BrowserStore {
             && providers.activeProvider?.supportsVision == true
     }
 
-    /// Captures the current WKWebView frame as a UIImage (points scale).
     func captureScreenshot() async -> UIImage? {
         guard let wv = activeTab?.webView else { return nil }
         return await withCheckedContinuation { continuation in
@@ -27,9 +18,6 @@ extension BrowserStore {
         }
     }
 
-    /// Ask the vision-capable model to list tappable targets on screen.
-    /// Returns normalised (0...1) coordinates so the result is independent of
-    /// device pixel ratio.
     func detectVisionClickables(viewportWidth: Double, viewportHeight: Double) async -> [VisionTarget] {
         guard isVisionFallbackAvailable else { return [] }
         guard let config = providers.activeProvider, let key = providers.apiKey(for: config) else { return [] }
@@ -73,7 +61,6 @@ extension BrowserStore {
         return Array(targets.prefix(8))
     }
 
-    /// Build synthetic DOM items from vision targets for the agent listing.
     func syntheticItems(from targets: [VisionTarget], viewportWidth: Double, viewportHeight: Double) -> [DOMItemInfo] {
         visionClickables.removeAll()
         var items: [DOMItemInfo] = []

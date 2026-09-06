@@ -1,11 +1,5 @@
 import Foundation
 
-// MARK: - Remote Navi web UI
-
-/// The zero-dependency web client served by the LAN server. Every PC / tablet /
-/// other phone opens `http://<iphone>:8765` and gets this UI. It mirrors Navi:
-/// Home, Chat, Browser, Tabs, Agent, Activity and Settings — with observation
-/// and control gated by Navi's LAN permissions.
 enum LANWebUI {
 
     static let html = """

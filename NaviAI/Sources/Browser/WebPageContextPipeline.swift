@@ -1,10 +1,6 @@
 import Foundation
 import Combine
 
-// MARK: - Realtime page snapshot (visible state, not the whole DOM)
-
-/// Compact, visible view of the current page produced by in-page JS. This is
-/// what the AI and LAN clients observe — never a blind full-DOM dump.
 struct RealtimePageSnapshot: Codable, Equatable {
     var url: String
     var title: String
@@ -47,13 +43,11 @@ struct RealtimePageSnapshot: Codable, Equatable {
 
     var isLoading: Bool { readyState != "complete" }
 
-    /// Is this snapshot about the same page content as another (cheap dedup)?
     func samePage(as other: RealtimePageSnapshot?) -> Bool {
         guard let other else { return false }
         return url == other.url && fingerprint == other.fingerprint
     }
 
-    /// Token-optimised text for the model (relevant context only).
     func compressedText(maxChars: Int = 9000) -> String {
         var parts: [String] = []
         if !url.isEmpty { parts.append("URL: \(url)") }
@@ -91,10 +85,6 @@ struct RealtimePageSnapshot: Codable, Equatable {
     }
 }
 
-// MARK: - Article view (reading pipeline)
-
-/// Extracted article content for the reading pipeline (Page → relevant content
-/// → compact context → AI analysis). Never ships the raw DOM.
 struct ArticleView: Codable, Equatable {
     var url: String
     var title: String
@@ -104,16 +94,6 @@ struct ArticleView: Codable, Equatable {
     var excerpt: String
 }
 
-// MARK: - Pipeline
-
-/// Real-time WebPage/Visual context pipeline.
-///
-/// Captures compact visible state in-page, then applies:
-/// - relevance filtering (visible interactive/main elements only)
-/// - change detection (fingerprint) so only real changes move forward
-/// - deduplication (identical content is dropped)
-/// - caching (per-URL snapshots) to avoid re-reading unchanged pages
-/// - compression (caps + truncation) so AI / LAN never sees the full DOM
 @MainActor
 final class WebPageContextPipeline: ObservableObject {
 
@@ -130,9 +110,6 @@ final class WebPageContextPipeline: ObservableObject {
 
     private init() {}
 
-    // MARK: Capture
-
-    /// Capture the current visible page state from the active tab.
     @discardableResult
     func capture(coordinator: WebCoordinator?) async -> RealtimePageSnapshot? {
         guard let coordinator else { return nil }
@@ -144,14 +121,13 @@ final class WebPageContextPipeline: ObservableObject {
         return snapshot
     }
 
-    /// Capture without routing through the cache/broadcast bookkeeping.
     func fresh(coordinator: WebCoordinator?) async -> RealtimePageSnapshot? {
         guard let coordinator else { return nil }
         return await readSnapshot(coordinator: coordinator)
     }
 
     private func readSnapshot(coordinator: WebCoordinator) async -> RealtimePageSnapshot? {
-        // Single-flight: never stack concurrent page evaluations.
+
         if captureInFlight { return latest }
         captureInFlight = true
         defer { captureInFlight = false }
@@ -167,7 +143,6 @@ final class WebPageContextPipeline: ObservableObject {
         }
     }
 
-    /// True when the snapshot differs from the last snapshot we pushed out.
     func hasRealChange(_ snapshot: RealtimePageSnapshot?) -> Bool {
         guard let snapshot else { return false }
         let hash = changeHash(snapshot)
@@ -181,9 +156,6 @@ final class WebPageContextPipeline: ObservableObject {
         latest = snapshot
     }
 
-    // MARK: Article extraction (reading pipeline)
-
-    /// Extract an article from the current page.
     func extractArticle(coordinator: WebCoordinator?) async -> ArticleView? {
         guard let coordinator else { return nil }
         do {
@@ -195,8 +167,6 @@ final class WebPageContextPipeline: ObservableObject {
             return nil
         }
     }
-
-    // MARK: Caching
 
     private func updateCache(_ snapshot: RealtimePageSnapshot) {
         if cache[snapshot.url] == nil {
@@ -212,8 +182,6 @@ final class WebPageContextPipeline: ObservableObject {
     func cached(for url: String) -> RealtimePageSnapshot? {
         cache[url]
     }
-
-    // MARK: Dedup / hash
 
     private func changeHash(_ s: RealtimePageSnapshot) -> String {
         var hasher = Hasher()
@@ -231,8 +199,6 @@ final class WebPageContextPipeline: ObservableObject {
         cacheOrder.removeAll()
     }
 }
-
-// MARK: - Hashable helpers
 
 private extension RealtimePageSnapshot.RealtimeFocusedInfo {
     var fingerprint: String {

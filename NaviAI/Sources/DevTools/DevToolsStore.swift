@@ -2,9 +2,6 @@ import Foundation
 import Combine
 import WebKit
 
-// MARK: - DevTools data types
-
-/// One console line from the page or from NaviAI's own JS bridge.
 struct DevConsoleEntry: Identifiable, Equatable {
     enum Level: String, Codable, CaseIterable {
         case log, info, warn, error, debug
@@ -24,17 +21,16 @@ struct DevConsoleEntry: Identifiable, Equatable {
 
     var id: UUID = UUID()
     var level: Level = .log
-    var message: String        // already redacted
+    var message: String
     var sourceURL: String?
     var line: Int?
     var date: Date = Date()
 }
 
-/// One network request captured by the page hook. Secrets redacted BEFORE storing.
 struct DevNetworkEntry: Identifiable, Equatable {
     var id: UUID = UUID()
     var method: String
-    var url: String            // redacted
+    var url: String
     var status: Int?
     var mimeType: String?
     var durationMS: Int?
@@ -48,16 +44,14 @@ struct DevNetworkEntry: Identifiable, Equatable {
     }
 }
 
-/// One localStorage/sessionStorage key-value pair (redacted).
 struct DevStorageEntry: Identifiable, Equatable {
     enum Area: String { case local, session }
     var id: String { area.rawValue + "://" + key }
     var area: Area
     var key: String
-    var value: String           // redacted, truncated
+    var value: String
 }
 
-/// Flattened DOM node description for the inspector list.
 struct DevDOMSummary: Equatable {
     var tag: String
     var idAttribute: String?
@@ -76,11 +70,6 @@ struct DevDOMSummary: Equatable {
     }
 }
 
-// MARK: - DevTools store
-
-/// Central DevTools state. All page data passes through `Redactor` BEFORE it
-/// is stored, so nothing sensitive can leak into history/screenshots/exports.
-/// Capture is pull-based: the DevTools panel refreshes from the active page.
 @MainActor
 final class DevToolsStore: ObservableObject {
     static let shared = DevToolsStore()
@@ -92,9 +81,9 @@ final class DevToolsStore: ObservableObject {
     @Published private(set) var sessionStorage: [DevStorageEntry] = []
     @Published private(set) var cookiesSummary: Int = 0
     @Published var isCapturing = true
-    /// The element the user picked in "Select Element" mode (if any).
+
     @Published private(set) var inspectedElement: ElementInspection?
-    /// Last AI/heuristic page diagnosis (Problem / Evidence / Cause / Fix).
+
     @Published private(set) var diagnosis: DevToolsDiagnosis?
 
     private enum Limits {
@@ -106,8 +95,6 @@ final class DevToolsStore: ObservableObject {
 
     private init() {}
 
-    // MARK: Console
-
     private func appendConsole(_ entry: DevConsoleEntry) {
         guard isCapturing else { return }
         console.append(entry)
@@ -116,7 +103,6 @@ final class DevToolsStore: ObservableObject {
         }
     }
 
-    /// Console line pushed from the page user script or the agent.
     func reportConsole(level: String, message: String, source: String?, line: Int?) {
         appendConsole(DevConsoleEntry(
             level: .init(rawValue: level) ?? .log,
@@ -125,7 +111,6 @@ final class DevToolsStore: ObservableObject {
             line: line))
     }
 
-    /// In-page JS exception surfaced by the agent or the user script.
     func reportJSException(_ text: String, url: String?, line: Int?) {
         appendConsole(DevConsoleEntry(
             level: .error,
@@ -137,8 +122,6 @@ final class DevToolsStore: ObservableObject {
     func clearConsole() {
         console.removeAll()
     }
-
-    // MARK: Network
 
     func recordRequest(
         method: String, url: URL?, status: Int?, mimeType: String?,
@@ -162,13 +145,9 @@ final class DevToolsStore: ObservableObject {
         network.removeAll()
     }
 
-    // MARK: DOM
-
     func setDOMSummaries(_ summaries: [DevDOMSummary]) {
         domElements = Array(summaries.prefix(Limits.dom))
     }
-
-    // MARK: Storage & cookies
 
     func setStorage(local: [(String, String)], session: [(String, String)]) {
         func map(_ pairs: [(String, String)], _ area: DevStorageEntry.Area) -> [DevStorageEntry] {
@@ -186,21 +165,14 @@ final class DevToolsStore: ObservableObject {
         cookiesSummary = count
     }
 
-    // MARK: Element inspection
-
     func setInspectedElement(_ element: ElementInspection?) {
         inspectedElement = element
     }
-
-    // MARK: Diagnosis
 
     func setDiagnosis(_ value: DevToolsDiagnosis?) {
         diagnosis = value
     }
 
-    // MARK: Tab lifecycle
-
-    /// Clear per-tab state when switching tabs.
     func clearForTabSwitch() {
         console.removeAll()
         network.removeAll()
@@ -212,13 +184,10 @@ final class DevToolsStore: ObservableObject {
     }
 }
 
-// MARK: - Page diagnosis model
-
-/// Structured result of DevTools analysis: Problem / Evidence / Cause / Fix.
 struct DevToolsDiagnosis: Identifiable, Equatable {
     enum Source: String, Equatable {
-        case llm        // produced by the configured AI provider
-        case heuristic  // local, offline rule-based fallback
+        case llm
+        case heuristic
     }
 
     var id: UUID = UUID()
@@ -230,9 +199,6 @@ struct DevToolsDiagnosis: Identifiable, Equatable {
     var date: Date = Date()
 }
 
-/// Snapshot of everything DevTools knows about the current page, used as
-/// input for both the heuristic and the LLM diagnosis. All strings are
-/// already redacted by the store before they reach this struct.
 struct DiagnosisContext {
     var url: String?
     var title: String?
@@ -242,16 +208,9 @@ struct DiagnosisContext {
     var domElementCount: Int
 }
 
-// MARK: - DevTools analyzer
-
-/// Turns DevTools page observations into a diagnosis. Prefers the configured
-/// AI provider (structured JSON output); falls back to a local heuristic that
-/// works fully offline. Never touches credentials: input was already redacted,
-/// and no proxy/VPN secrets are ever read here.
 @MainActor
 enum DevToolsAnalyzer {
 
-    /// Gather the page snapshot from the store. Only safe (redacted) fields.
     static func collectContext(store: DevToolsStore) -> DiagnosisContext {
         let errors = store.console
             .filter { $0.level == .error }
@@ -280,7 +239,6 @@ enum DevToolsAnalyzer {
         )
     }
 
-    /// Local, offline, deterministic diagnosis. Guaranteed non-nil.
     static func heuristicDiagnosis(from ctx: DiagnosisContext) -> DevToolsDiagnosis {
         if !ctx.networkFailures.isEmpty {
             return DevToolsDiagnosis(
@@ -322,11 +280,6 @@ private static func analyzeNetworkCause(_ failures: [String]) -> String {
         return "The server responded with an error status, or the connection to the endpoint failed."
     }
 
-    // MARK: LLM-assisted diagnosis
-
-    /// Runs the full pipeline on the CURRENT page: collect → (LLM ?: heuristic).
-    /// `config`/`apiKey` drive the LLM when a provider is configured; otherwise
-    /// the offline heuristic is used. Returns a diagnosis either way.
     static func diagnose(
         store: DevToolsStore,
         config: ProviderConfig?,

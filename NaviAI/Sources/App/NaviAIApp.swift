@@ -27,15 +27,11 @@ final class AppModel: ObservableObject {
         self.browser = BrowserStore(settings: settings, providers: providers)
         self.automation = AutomationScheduler(browser: browser)
 
-        // Dependency injection for the image pipeline: the active provider and
-        // its Keychain key are resolved through the existing stores.
         ImagePipeline.shared.activeProvider = { [weak providers] in providers?.activeProvider }
         ImagePipeline.shared.apiKeyFor = { [weak providers] config in
             providers?.apiKey(for: config)
         }
 
-        // LLM-backed conversation summarizer (graceful fallback inside the
-        // store when no provider is configured).
         let llm = LLMService()
         ConversationStore.shared.summarizer = { [weak providers] text in
             guard let config = providers?.activeProvider,
@@ -46,7 +42,6 @@ final class AppModel: ObservableObject {
             return reply?.text ?? ""
         }
 
-        // Deep research drives the browser.
         DeepResearchEngine.shared.browser = browser
     }
 }
@@ -77,9 +72,7 @@ struct RootView: View {
                 AutomationNotification.shared.requestPermissionOnce()
                 app.automation.restoreAfterBackground()
             case .background:
-                // Persist task state / current step / progress so the run can
-                // be offered for resume on the next launch (iOS background
-                // limits mean the run itself cannot continue unbounded).
+
                 app.automation.persistForBackground()
             default:
                 break
@@ -100,8 +93,7 @@ struct RootView: View {
 struct MainContainerView: View {
     var body: some View {
         BrowserHomeView()
-            // Confirmation alerts + resume prompt + floating task card live
-            // above the browser; purely functional, never decorative.
+
             .overlay {
                 AutomationOverlays()
             }

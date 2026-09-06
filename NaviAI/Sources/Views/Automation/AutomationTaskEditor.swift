@@ -1,10 +1,5 @@
 import SwiftUI
 
-// MARK: - Automation task editor
-
-/// Create / edit a multi-step automation: steps, schedule (run-once delay or
-/// repeat interval with optional daily window + max runs), retry and
-/// confirmation policy. The scheduler rejects unbounded repeat schedules.
 struct AutomationTaskEditor: View {
     @EnvironmentObject var automation: AutomationScheduler
     @Environment(\.dismiss) private var dismiss
@@ -174,8 +169,6 @@ struct AutomationTaskEditor: View {
         }
     }
 
-    // MARK: Load / save
-
     private func load() {
         guard let t = editingTask else { return }
         name = t.name
@@ -264,8 +257,6 @@ struct AutomationTaskEditor: View {
         AutomationSchedule.parseClock(text) != nil ? text.trimmingCharacters(in: .whitespaces) : nil
     }
 }
-
-// MARK: - Step editor
 
 struct AutomationStepEditor: View {
     @Environment(\.dismiss) private var dismiss
