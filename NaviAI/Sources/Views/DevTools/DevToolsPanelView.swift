@@ -39,8 +39,11 @@ private struct DevConsoleTab: View {
 
             if store.console.isEmpty {
                 Spacer()
-                ContentUnavailableView("No console output", systemImage: "terminal",
-                                       description: Text("Messages logged by this page appear here."))
+                VStack(spacing: 8) {
+                    Image(systemName: "terminal").font(.title2).foregroundStyle(.secondary)
+                    Text("No console output").font(.subheadline.weight(.medium))
+                    Text("Messages logged by this page appear here.").font(.footnote).foregroundStyle(.secondary)
+                }
                 Spacer()
             } else {
                 List(filtered.reversed()) { entry in
@@ -116,8 +119,11 @@ private struct DevNetworkTab: View {
             Group {
                 if store.network.isEmpty {
                     Spacer()
-                    ContentUnavailableView("No requests captured", systemImage: "arrow.left.arrow.right",
-                                           description: Text("Requests issued by this page appear here. Headers and bodies are never logged."))
+                    VStack(spacing: 8) {
+                        Image(systemName: "arrow.left.arrow.right").font(.title2).foregroundStyle(.secondary)
+                        Text("No requests captured").font(.subheadline.weight(.medium))
+                        Text("Requests issued by this page appear here. Headers and bodies are never logged.").font(.footnote).foregroundStyle(.secondary)
+                    }
                     Spacer()
                 } else {
                     List(filtered.reversed()) { entry in
@@ -195,7 +201,7 @@ private struct DevDebugTab: View {
     }
 
     private func diagnosisSection(_ d: DevToolsDiagnosis) -> some View {
-        Section("Result") {
+        Section(header: Text("Result")) {
             VStack(alignment: .leading, spacing: 4) {
                 Text("Problem").font(.caption.weight(.semibold)).foregroundStyle(.secondary)
                 Text(d.problem).font(.subheadline).foregroundStyle(.primary)
@@ -323,7 +329,9 @@ struct DevToolsPanelView: View {
     }
 
     private var inspector: DOMInspector {
-        DOMInspector(coordinator: app.browser.activeCoordinator)
+        let i = DOMInspector()
+        i.coordinator = app.browser.activeCoordinator
+        return i
     }
 }
 
@@ -376,8 +384,11 @@ private struct DevElementsTab: View {
                 Text("Choose an element directly on the page to see its tag, selector, attributes, text and bounding box.")
             }
             if store.domElements.isEmpty {
-                ContentUnavailableView("No elements loaded", systemImage: "curlybraces.square",
-                                       description: Text("Tap the refresh button to read the page structure."))
+                VStack(spacing: 8) {
+                    Image(systemName: "curlybraces.square").font(.title2).foregroundStyle(.secondary)
+                    Text("No elements loaded").font(.subheadline.weight(.medium))
+                    Text("Tap the refresh button to read the page structure.").font(.footnote).foregroundStyle(.secondary)
+                }
             } else {
                 ForEach(Array(store.domElements.enumerated()), id: \.offset) { _, el in
                     VStack(alignment: .leading, spacing: 2) {

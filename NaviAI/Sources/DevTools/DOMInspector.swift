@@ -183,10 +183,7 @@ extension DOMInspector {
         guard let raw = try? await coordinator?.evaluate(code) else {
             return "⚠️ Evaluation failed or returned nil"
         }
-        switch raw {
-        case nil: return "undefined"
-        case .some(let v): return Redactor.redactText(String(describing: v))
-        }
+        return Redactor.redactText(String(describing: raw))
     }
 
     var selectModeStartScript: String {

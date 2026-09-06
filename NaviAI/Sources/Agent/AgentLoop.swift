@@ -282,8 +282,10 @@ extension BrowserStore {
                 let err = (error as? AIError) ?? .network(error)
                 turns.append(ChatTurn(role: .assistant, kind: .info, text: err.friendlyMessage))
                 agentStatus = .error(err.friendlyMessage)
+                var isNet = false
+                if case .network = err { isNet = true }
                 finishTask(reason: err == .cancelled ? .cancelled
-                                     : (err.isNetworkError ? .networkFailure : .unrecoverableError))
+                                     : (isNet ? .networkFailure : .unrecoverableError))
                 return
             }
         }

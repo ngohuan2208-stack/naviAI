@@ -23,7 +23,7 @@ final class AutomationScheduler: ObservableObject {
     }
 
     let engine = AutomationEngine()
-    private var tickTimer: Timer?
+    private var tickerTask: Task<Void, Never>?
     private var confirmationContinuation: CheckedContinuation<Bool, Never>?
 
     private var pausingTaskIDs = Set<UUID>()
@@ -56,12 +56,14 @@ final class AutomationScheduler: ObservableObject {
     }
 
     private func armTicker() {
-        tickTimer?.invalidate()
-        let t = Timer(timeInterval: 1, repeats: true) { [weak self] _ in
-            Task { @MainActor in self?.tick() }
+        tickerTask?.cancel()
+        tickerTask = Task { [weak self] in
+            while !Task.isCancelled {
+                try? await Task.sleep(nanoseconds: 1_000_000_000)
+                guard !Task.isCancelled else { break }
+                self?.tick()
+            }
         }
-        RunLoop.main.add(t, forMode: .common)
-        tickTimer = t
     }
 
     private func tick() {

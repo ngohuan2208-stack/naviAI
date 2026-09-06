@@ -250,7 +250,7 @@ enum SmartRecentsBuilder {
             let tabID = tab.id
             let title = tab.title.isEmpty ? (tab.url?.host ?? "Tab") : tab.title
             let subtitle = tab.url?.absoluteString ?? ""
-            let date = tab.lastOpened
+            let date: Date? = nil
             items.append(SmartRecent(
                 id: "tab-\(tabID)",
                 kind: .tab,
