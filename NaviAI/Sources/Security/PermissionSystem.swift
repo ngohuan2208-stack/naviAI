@@ -11,11 +11,13 @@ enum ToolPermission: String, Codable, CaseIterable, Identifiable {
     case download, screenshot, readFile, writeFile, imageGenerate, search
     case tabManage, historyAccess, conversationAccess, automation, agent
     case externalRequest, accountAction, purchase, sendMessage, delete
+    case selfStop
 
     var id: String { rawValue }
 
     var label: String {
         switch self {
+        case .selfStop: return "Stop current task"
         case .readWeb: return "Read web page"
         case .click: return "Click elements"
         case .type: return "Type text"
@@ -66,6 +68,7 @@ enum ToolPermission: String, Codable, CaseIterable, Identifiable {
         case .automation: return "wand.and.stars"
         case .agent: return "brain.head.profile"
         case .externalRequest: return "network"
+        case .selfStop: return "stop.circle"
         case .accountAction: return "person.crop.circle.badge.xmark"
         case .purchase: return "creditcard"
         case .sendMessage: return "paperplane"

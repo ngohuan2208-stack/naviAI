@@ -48,7 +48,7 @@ extension BrowserStore {
         return try decodeJSResult(value)
     }
 
-    private func arguments(from json: String) -> [String: Any] {
+    func arguments(from json: String) -> [String: Any] {
         guard let data = json.data(using: .utf8),
               let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
             return [:]
@@ -71,7 +71,7 @@ extension BrowserStore {
         // Hard safety net for View mode: even if a stale/extra tool call slips
         // through the filtered tool list, interaction tools are refused here.
         if !agentMode.permitsInteraction {
-            let readOnly = ["readPage", "findText"]
+            let readOnly = ["readPage", "findText", "capture_web_screenshot"]
             if !readOnly.contains(name) {
                 return "Blocked: View mode is read-only. Switch to Interact or Auto mode to perform this action."
             }
@@ -127,6 +127,12 @@ extension BrowserStore {
                 return "Screenshot captured and attached to the conversation context."
             }
             return "Could not capture a screenshot."
+        case "capture_web_screenshot":
+            return await toolCaptureWebScreenshot()
+        case "stopSelf":
+            stopSelfRequested = true
+            let reason = stringArg(args, "reason").isEmpty ? "complete" : stringArg(args, "reason")
+            return "STOP_SELF requested (\(reason)). Stopping the current task."
         case "generateImage":
             return await toolGenerateImage(prompt: stringArg(args, "prompt"), size: stringArg(args, "size"))
         default:
@@ -570,6 +576,21 @@ extension BrowserStore {
 
     /// Generates an image with the active provider (OpenAI-compatible images
     /// endpoint). Never fakes success: failures surface real provider errors.
+    private func toolCaptureWebScreenshot() async -> String {
+        guard let tab = activeTab else { return "No active tab to capture." }
+        let shot = await WebScreenshotManager.shared.capture(
+            activeTab: tab,
+            maxWidth: settings.screenshotMaxWidth,
+            quality: 0.6)
+        guard let shot else {
+            return "Screenshot throttled (captures are rate-limited) or capture failed. Try again shortly."
+        }
+        if shot.byteCount < 1_500_000 {
+            pendingVisionScreenshot = shot
+        }
+        return "Captured web screenshot: \(shot.pixelWidth)×\(shot.pixelHeight)px, \(shot.byteCount) bytes (JPEG). Merged into vision context when the model supports images."
+    }
+
     private func toolGenerateImage(prompt: String, size: String?) async -> String {
         let trimmed = prompt.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return "generateImage requires a prompt." }

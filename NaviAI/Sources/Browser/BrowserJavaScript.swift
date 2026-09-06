@@ -636,4 +636,191 @@ enum BrowserJavaScript {
         })()
         """
     }
+
+    // MARK: - Realtime "what the user sees" context
+
+    /// Compact visible-state capture: URL, title, ready state, scroll position,
+    /// viewport, focused element, visible text excerpt, headings, links,
+    /// buttons, inputs, forms and a structural fingerprint. This is the
+    /// relevance-filtered feed for AI vision and the LAN realtime view.
+    static func realtimeContextExpr() -> String {
+        """
+        (function() {
+          function txt(el) {
+            if (!el) { return ''; }
+            return (el.innerText || el.textContent || '').replace(/\\s+/g, ' ').trim();
+          }
+          function cap(s, n) { return s.length > n ? s.slice(0, n) : s; }
+          function h32(s) {
+            var h = 5381;
+            for (var i = 0; i < s.length; i++) { h = ((h << 5) + h + s.charCodeAt(i)) | 0; }
+            return (h >>> 0).toString(16);
+          }
+          var vw = document.documentElement.clientWidth || window.innerWidth || 0;
+          var vh = document.documentElement.clientHeight || window.innerHeight || 0;
+          var scrollY = window.pageYOffset || document.documentElement.scrollTop || 0;
+          var scrollX = window.pageXOffset || document.documentElement.scrollLeft || 0;
+
+          var focused = null;
+          var active = document.activeElement;
+          if (active && active.nodeType === 1) {
+            var lbl = '';
+            try { if (active.labels && active.labels.length) lbl = txt(active.labels[0]); } catch (e) {}
+            focused = {
+              tag: active.nodeName.toLowerCase(),
+              type: (active.getAttribute && active.getAttribute('type')) || active.type || '',
+              name: (active.getAttribute && active.getAttribute('name')) || '',
+              placeholder: active.getAttribute ? (active.getAttribute('placeholder') || '') : '',
+              label: lbl,
+              textLength: (active.value ? String(active.value).length : 0)
+            };
+          }
+
+          var seen = {};
+          var textParts = [];
+          function pushText(el, max) {
+            var t = txt(el);
+            if (!t) { return; }
+            var k = t.slice(0, 80);
+            if (seen[k]) { return; }
+            seen[k] = 1;
+            textParts.push(t.length > max ? t.slice(0, max) + '…' : t);
+          }
+          var main = document.querySelector('main, article, [role="main"]');
+          if (main) { pushText(main, 4000); }
+          pushText(document.body, 6000);
+
+          var headings = [];
+          var hs = document.querySelectorAll('h1,h2,h3');
+          for (var i = 0; i < hs.length && headings.length < 30; i++) {
+            var h = txt(hs[i]);
+            if (h) { headings.push(cap(h, 200)); }
+          }
+
+          var links = [];
+          var seenL = {};
+          var as = document.querySelectorAll('a[href]');
+          for (var i = 0; i < as.length && links.length < 40; i++) {
+            var lt = txt(as[i]);
+            var lh = as[i].href;
+            try {
+              var u = new URL(lh);
+              if ((u.protocol === 'http:' || u.protocol === 'https:') && !seenL[lh] && lt) {
+                seenL[lh] = 1;
+                links.push({ text: cap(lt, 120), href: lh });
+              }
+            } catch (e) {}
+          }
+
+          var buttons = [];
+          var bs = document.querySelectorAll('button,[role="button"]');
+          for (var i = 0; i < bs.length && buttons.length < 40; i++) {
+            var bt = txt(bs[i]);
+            if (bt) { buttons.push(cap(bt, 120)); }
+          }
+
+          function labelFor(el) {
+            var lb = '';
+            try { if (el.labels && el.labels.length) lb = txt(el.labels[0]); } catch (e) {}
+            if (!lb && el.id) {
+              try {
+                var ff = document.querySelectorAll('label[for="' + el.id + '"]');
+                if (ff.length) { lb = txt(ff[0]); }
+              } catch (e) {}
+            }
+            return cap(lb, 120);
+          }
+
+          var inputs = [];
+          var is = document.querySelectorAll('input,textarea,select,[contenteditable="true"]');
+          for (var i = 0; i < is.length && inputs.length < 30; i++) {
+            var ie = is[i];
+            inputs.push({
+              type: (ie.getAttribute && ie.getAttribute('type')) || ie.type || (ie.nodeName === 'TEXTAREA' ? 'textarea' : 'text'),
+              name: ie.getAttribute && (ie.getAttribute('name') || ''),
+              placeholder: ie.getAttribute ? (ie.getAttribute('placeholder') || '') : '',
+              label: labelFor(ie)
+            });
+          }
+
+          var forms = [];
+          var fms = document.querySelectorAll('form');
+          for (var i = 0; i < fms.length && forms.length < 5; i++) {
+            var n = 0;
+            try { n = fms[i].querySelectorAll('input,textarea,select').length; } catch (e) {}
+            forms.push({
+              action: fms[i].action || '',
+              method: (fms[i].method || 'get').toLowerCase(),
+              fieldCount: n
+            });
+          }
+
+          var fp = [document.title, headings.join('|'), buttons.join('|'),
+                    textParts.join('|').slice(0, 4000), links.length, inputs.length].join('~');
+          return JSON.stringify({
+            url: location.href,
+            title: document.title,
+            readyState: document.readyState,
+            scrollX: scrollX,
+            scrollY: scrollY,
+            viewportWidth: vw,
+            viewportHeight: vh,
+            visibleText: textParts.join('\\n').slice(0, 8000),
+            headings: headings,
+            links: links,
+            buttons: buttons,
+            inputs: inputs,
+            forms: forms,
+            focused: focused,
+            fingerprint: h32(fp)
+          });
+        })()
+        """
+    }
+
+    // MARK: - Article extraction (news / web reading pipeline)
+
+    /// Reads like a person: finds the article/main content, extracts headings,
+    /// paragraphs and byline, and returns a compact excerpt. Never raw DOM.
+    static func articleExtractionExpr() -> String {
+        """
+        (function() {
+          function txt(el) { return (el && el.textContent) ? el.textContent.replace(/\\s+/g, ' ').trim() : ''; }
+          function cap(s, n) { return s.length > n ? s.slice(0, n) : s; }
+          var el = document.querySelector('article') ||
+                   document.querySelector('[role="main"]') ||
+                   document.querySelector('main') ||
+                   document.body;
+          var headings = [];
+          if (el.querySelectorAll) {
+            var hs = el.querySelectorAll('h1,h2,h3,h4');
+            for (var i = 0; i < hs.length && headings.length < 40; i++) {
+              var h = txt(hs[i]);
+              if (h) { headings.push(cap(h, 200)); }
+            }
+          }
+          var paragraphs = [];
+          if (el.querySelectorAll) {
+            var ps = el.querySelectorAll('p');
+            for (var i = 0; i < ps.length && paragraphs.length < 120; i++) {
+              var t = txt(ps[i]);
+              if (t.length > 40) { paragraphs.push(cap(t, 1400)); }
+            }
+          }
+          var byline = '';
+          if (el.querySelector) {
+            var by = el.querySelector('[rel="author"], .author, .byline');
+            if (by) { byline = cap(txt(by), 200); }
+          }
+          return JSON.stringify({
+            url: location.href,
+            title: document.title,
+            byline: byline,
+            headings: headings,
+            paragraphs: paragraphs,
+            excerpt: cap(txt(el), 2500)
+          });
+        })()
+        """
+    }
 }

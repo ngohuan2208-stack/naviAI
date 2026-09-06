@@ -81,6 +81,11 @@ struct SettingsView: View {
                 } label: {
                     Label("Network & Proxy", systemImage: "antenna.radiowaves.left.and.right")
                 }
+                NavigationLink {
+                    LANRemoteSettingsView()
+                } label: {
+                    Label("LAN Remote Control", systemImage: "display.and.arrow.down")
+                }
                 Button {
                     app.browser.showsDevTools = true
                 } label: {
@@ -89,6 +94,11 @@ struct SettingsView: View {
             }
 
             Section {
+                NavigationLink {
+                    BrowserDataSettingsView()
+                } label: {
+                    Label("Browser Data (import/export)", systemImage: "externaldrive.badge.timemachine")
+                }
                 Button { clearAction = .history } label: { Label("Clear history", systemImage: "clock.arrow.circlepath") }
                 Button { clearAction = .bookmarks } label: { Label("Clear bookmarks", systemImage: "book") }
                 Button { clearAction = .downloads } label: { Label("Clear downloads", systemImage: "arrow.down.circle") }

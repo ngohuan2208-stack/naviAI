@@ -34,7 +34,9 @@ enum AgentToolRegistry {
         ToolInfo(name: "extractText", description: "Extract page text for summarisation.", risk: .safe),
         ToolInfo(name: "askLLM", description: "Reason about the page with the AI provider.", risk: .safe),
         ToolInfo(name: "wait", description: "Wait for the page or a timer.", risk: .safe),
-        ToolInfo(name: "notify", description: "Show a local notification.", risk: .safe)
+        ToolInfo(name: "notify", description: "Show a local notification.", risk: .safe),
+        ToolInfo(name: "capture_web_screenshot", description: "Capture the visible page as a JPEG (viewport only).", risk: .safe),
+        ToolInfo(name: "stopSelf", description: "Stop the current task.", risk: .safe)
     ]
 
     /// Classification used by the confirmation policy: purchases, form

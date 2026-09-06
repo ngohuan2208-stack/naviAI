@@ -82,6 +82,8 @@ final class ToolRegistry {
             .init(name: "closeTab", permission: .tabManage, description: "Close the active tab.", required: []),
             .init(name: "extractText", permission: .extract, description: "Extract the visible text of the page.", required: []),
             .init(name: "screenshot", permission: .screenshot, description: "Capture a screenshot of the current page.", required: []),
+            .init(name: "capture_web_screenshot", permission: .screenshot, description: "Capture the visible web page as a JPEG (viewport only, throttled).", required: []),
+            .init(name: "stopSelf", permission: .selfStop, description: "Stop the current task (call when done or blocked).", required: []),
             .init(name: "generateImage", permission: .imageGenerate, description: "Generate an image from a text prompt.", required: ["prompt"]),
             .init(name: "wait", permission: .wait, description: "Pause briefly.", required: []),
             .init(name: "notify", permission: .historyAccess, description: "Post a local notification.", required: [])

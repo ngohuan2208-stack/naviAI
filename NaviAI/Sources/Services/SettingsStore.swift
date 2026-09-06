@@ -69,6 +69,19 @@ final class SettingsStore: ObservableObject {
     @Published var automationDefaultPolicy: ConfirmationPolicy { didSet { defaults.set(automationDefaultPolicy.rawValue, forKey: Keys.automationPolicy) } }
     @Published var floatingStatusEnabled: Bool { didSet { defaults.set(floatingStatusEnabled, forKey: Keys.floatingStatus) } }
 
+    // Continuous agent / watchdog / vision
+    @Published var agentWatchdogEnabled: Bool { didSet { defaults.set(agentWatchdogEnabled, forKey: Keys.watchdog) } }
+    @Published var agentMaxContinuousSteps: Int { didSet { defaults.set(agentMaxContinuousSteps, forKey: Keys.maxSteps) } }
+
+    // Web screenshots (real-time vision limits)
+    @Published var screenshotMaxWidth: Int { didSet { defaults.set(screenshotMaxWidth, forKey: Keys.screenshotWidth) } }
+    @Published var screenshotMinInterval: Double { didSet { defaults.set(screenshotMinInterval, forKey: Keys.screenshotInterval) } }
+
+    // LAN Control
+    @Published var lanEnabled: Bool { didSet { defaults.set(lanEnabled, forKey: Keys.lanEnabled) } }
+    @Published var lanAllowObserve: Bool { didSet { defaults.set(lanAllowObserve, forKey: Keys.lanObserve) } }
+    @Published var lanAllowControl: Bool { didSet { defaults.set(lanAllowControl, forKey: Keys.lanControl) } }
+
     private enum Keys {
         static let onboarded = "settings.onboarded"
         static let appearance = "settings.appearance"
@@ -83,6 +96,13 @@ final class SettingsStore: ObservableObject {
         static let automationNotifications = "settings.automationNotifications"
         static let automationPolicy = "settings.automationPolicy"
         static let floatingStatus = "settings.floatingStatus"
+        static let watchdog = "agent.watchdogEnabled"
+        static let maxSteps = "agent.maxContinuousSteps"
+        static let screenshotWidth = "agent.screenshotMaxWidth"
+        static let screenshotInterval = "agent.screenshotMinInterval"
+        static let lanEnabled = "lan.enabled"
+        static let lanObserve = "lan.allowObserve"
+        static let lanControl = "lan.allowControl"
     }
 
     init() {
@@ -100,5 +120,12 @@ final class SettingsStore: ObservableObject {
         self.automationNotificationsEnabled = d.object(forKey: Keys.automationNotifications) as? Bool ?? true
         self.automationDefaultPolicy = ConfirmationPolicy(rawValue: d.string(forKey: Keys.automationPolicy) ?? "") ?? .riskyActions
         self.floatingStatusEnabled = d.object(forKey: Keys.floatingStatus) as? Bool ?? true
+        self.agentWatchdogEnabled = d.object(forKey: Keys.watchdog) as? Bool ?? true
+        self.agentMaxContinuousSteps = d.object(forKey: Keys.maxSteps) as? Int ?? 80
+        self.screenshotMaxWidth = d.object(forKey: Keys.screenshotWidth) as? Int ?? 1280
+        self.screenshotMinInterval = d.object(forKey: Keys.screenshotInterval) as? Double ?? 2.5
+        self.lanEnabled = d.object(forKey: Keys.lanEnabled) as? Bool ?? false
+        self.lanAllowObserve = d.object(forKey: Keys.lanObserve) as? Bool ?? true
+        self.lanAllowControl = d.object(forKey: Keys.lanControl) as? Bool ?? true
     }
 }

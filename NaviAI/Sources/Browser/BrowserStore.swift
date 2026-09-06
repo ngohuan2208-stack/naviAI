@@ -268,6 +268,16 @@ final class BrowserStore: ObservableObject {
     @Published var taskGoal: String = ""
     @Published var agentStep: Int = 0
 
+    // Continuous task runtime (also surfaced on LAN).
+    @Published var runningTask: PersistedAgentTask?
+    /// Persistent continuation instruction attached to the running task.
+    var persistentContinuationPrompt: String = ""
+    /// Set by the STOP_SELF tool; the loop stops on the next iteration.
+    var stopSelfRequested = false
+    /// Non-nil while a captured screenshot is waiting to be merged into the
+    /// next LLM request as vision evidence.
+    var pendingVisionScreenshot: WebScreenshot?
+
     // Find in page
     @Published var isFindActive = false
     @Published var findQuery: String = ""
@@ -627,6 +637,13 @@ final class BrowserStore: ObservableObject {
 
     func clearBookmarks() {
         bookmarks.removeAll()
+        persistLibrary()
+    }
+
+    /// Append imported bookmarks (dedup is done by the caller). Persists.
+    func appendBookmarks(_ items: [BookmarkItem]) {
+        guard !items.isEmpty else { return }
+        bookmarks.insert(contentsOf: items, at: 0)
         persistLibrary()
     }
 

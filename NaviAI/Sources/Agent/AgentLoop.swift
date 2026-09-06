@@ -105,6 +105,12 @@ extension BrowserStore {
             AgentToolSpec(name: "screenshot",
                           description: "Capture a screenshot of the current page and attach it to the conversation context.",
                           parameters: schema([], [:])),
+            AgentToolSpec(name: "capture_web_screenshot",
+                          description: "Capture a JPEG screenshot of the currently visible web page (viewport only). Returns dimensions and size. The image is merged into the next model turn as vision evidence when the model supports images. Use sparingly — captures are throttled.",
+                          parameters: schema([], [:])),
+            AgentToolSpec(name: "stopSelf",
+                          description: "Stop the current task. Call this when the objective is complete, impossible, requires missing information, fails repeatedly, or the user's goal has been satisfied.",
+                          parameters: schema(["reason"], ["reason": str("reason", "Short reason: complete | impossible | missing_info | repeated_failure | satisfied")])),
             AgentToolSpec(name: "generateImage",
                           description: "Generate an image from a text prompt with the configured image provider. Returns the saved file path.",
                           parameters: schema(["prompt"], [
@@ -147,13 +153,39 @@ extension BrowserStore {
             return
         }
 
+        // Continuous-run setup: durable task state + safety watchdog.
+        let task: PersistedAgentTask
+        if let existing = runningTask {
+            task = existing
+        } else {
+            task = PersistedAgentTask(goal: taskGoal, continuationPrompt: persistentContinuationPrompt)
+        }
+        task.mode = agentMode.rawValue
+        task.status = .running
+        runningTask = task
+        persistTask()
+
+        AgentWatchdog.shared.reset()
+        AgentWatchdog.shared.isEnabled = settings.agentWatchdogEnabled
+        AgentWatchdog.shared.maxSteps = max(30, settings.agentMaxContinuousSteps)
+        stopSelfRequested = false
+
         var stepCount = 0
-        let maxSteps = 30
+        let maxSteps = AgentWatchdog.shared.maxSteps
         agentStep = 0
 
         while true {
             if Task.isCancelled {
-                agentStatus = .stopped
+                finishTask(reason: .cancelled)
+                return
+            }
+            // Safety watchdog fires first — the AI can never disable it.
+            if stopSelfRequested {
+                finishTask(reason: .selfStopped)
+                return
+            }
+            if let reason = AgentWatchdog.shared.evaluate() {
+                finishTask(reason: reason)
                 return
             }
 
@@ -169,15 +201,34 @@ extension BrowserStore {
                     allowTitle: "I solved it — Continue",
                     denyTitle: "Stop"
                 )
-                if !granted { agentStatus = .stopped; return }
+                if !granted { finishTask(reason: .userStopped); return }
                 continue
             }
 
             agentStatus = .thinking
 
-            // Build the system + conversation for this step.
-            let sys = agentSystemPrompt(pageContext: activePageLine() + "\n" + tabListLine())
-            let history: [OutboundItem] = [.system(sys)] + apiHistory
+            // Build the system + conversation for this step. The page context
+            // comes from the realtime visible-context pipeline (compressed,
+            // deduplicated, cached) — never a raw DOM dump.
+            let pageContext = await visiblePageContextText() + "\n" + tabListLine()
+            let sys = agentSystemPrompt(pageContext: pageContext)
+
+            var history: [OutboundItem] = [.system(sys)]
+            if let task = runningTask, !task.goal.isEmpty {
+                history.append(.system("TASK OBJECTIVE (persistent): \(task.goal)\n\(AgentContinuation.compactState(of: task))"))
+            }
+            // Context compression: when the transcript grows too large the
+            // objective + task state are pinned and the tail trimmed instead of
+            // resending the entire conversation.
+            history.append(contentsOf: AgentContinuation.trimmed(history: apiHistory, task: runningTask))
+            // Merge a fresh web screenshot as vision evidence when supported.
+            if let shot = pendingVisionScreenshot, isVisionFallbackAvailable {
+                history.append(.userVision(
+                    text: "Screenshot evidence of the current page (captured at \(shot.capturedAt)). Use it to understand what the user sees.",
+                    imageBase64: shot.base64,
+                    mimeType: "image/jpeg"))
+                pendingVisionScreenshot = nil
+            }
 
             do {
                 let reply = try await llm.complete(
@@ -188,7 +239,7 @@ extension BrowserStore {
                 )
 
                 if Task.isCancelled {
-                    agentStatus = .stopped
+                    finishTask(reason: .cancelled)
                     return
                 }
 
@@ -196,7 +247,11 @@ extension BrowserStore {
                 // it but continue executing the calls.
                 if !reply.toolCalls.isEmpty {
                     for call in reply.toolCalls {
-                        if Task.isCancelled { agentStatus = .stopped; return }
+                        if Task.isCancelled { finishTask(reason: .cancelled); return }
+                        if stopSelfRequested || call.name == "stopSelf" {
+                            finishTask(reason: .selfStopped)
+                            return
+                        }
 
                         let actionNote = describeAction(call)
                         if !actionNote.isEmpty {
@@ -208,48 +263,63 @@ extension BrowserStore {
                         apiHistory.append(.toolResult(toolCallID: call.id, content: result))
                         stepCount += 1
                         agentStep = stepCount
+                        task.stepCount = stepCount
+                        activityStep(actionNote.isEmpty ? "Executing \(call.name)…" : actionNote)
+                        trackWatchdog(for: call, result: result)
+
+                        if stopSelfRequested {
+                            finishTask(reason: .selfStopped)
+                            return
+                        }
                         if stepCount >= maxSteps {
-                            finishWith(info: "Reached the maximum number of actions (\(maxSteps)). Please continue with a new request.")
+                            finishWith(info: "Reached the maximum number of actions (\(maxSteps)). Please continue with a new request.", reason: .maxSteps)
                             return
                         }
                     }
                     continue
                 }
 
-                // Final answer (no tool calls).
+                // Final answer (no tool calls): the objective is satisfied.
                 if let text = reply.text, !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                    turns.append(ChatTurn(role: .assistant, kind: .text, text: text.trimmingCharacters(in: .whitespacesAndNewlines)))
-                    apiHistory.append(.assistantText(text.trimmingCharacters(in: .whitespacesAndNewlines)))
+                    let answer = text.trimmingCharacters(in: .whitespacesAndNewlines)
+                    turns.append(ChatTurn(role: .assistant, kind: .text, text: answer))
+                    apiHistory.append(.assistantText(answer))
                     cursor.visible = false
                     cursor.isPressing = false
                     cursor.label = nil
                     agentStatus = .done
+                    activity("✅ Task complete")
+                    finishTask(reason: .success)
                     return
                 }
 
                 // Nothing useful to do.
                 turns.append(ChatTurn(role: .assistant, kind: .info, text: "AI needs clarification. Please rephrase or be more specific."))
                 agentStatus = .error("AI needs clarification")
+                finishTask(reason: .unrecoverableError)
                 return
             } catch AIError.cancelled {
-                agentStatus = .stopped
+                finishTask(reason: .cancelled)
                 return
             } catch {
                 let err = (error as? AIError) ?? .network(error)
                 turns.append(ChatTurn(role: .assistant, kind: .info, text: err.friendlyMessage))
                 agentStatus = .error(err.friendlyMessage)
+                finishTask(reason: err == .cancelled ? .cancelled
+                                     : (err.isNetworkError ? .networkFailure : .unrecoverableError))
                 return
             }
         }
     }
 
-    private func finishWith(info: String) {
+    private func finishWith(info: String, reason: AgentStopReason = .success) {
         turns.append(ChatTurn(role: .assistant, kind: .info, text: info))
         cursor.visible = false
         cursor.isPressing = false
         cursor.label = nil
-        agentStatus = .done
+        agentStatus = reason.isAutoStop ? .stopped : .done
         isAgentRunning = false
+        finishTask(reason: reason)
     }
 
     private func describeAction(_ call: ToolCallRequest) -> String {
@@ -302,9 +372,13 @@ extension BrowserStore {
         - To reach results lower on a page, scroll and readPage again.
         - If you meet a CAPTCHA or anti-bot challenge, stop and tell the user you need them to solve it. You must NOT try to bypass it.
         - If you are about to send a form/message, purchase, delete data or change account info, mention it clearly - the user will be asked to confirm.
-        - When the user's task is complete, stop calling tools and give the final answer in the same language the user used.
-        - If you do not understand the request, ask for clarification in your final answer.
-        - If an elementId is stale (page changed), call readPage again to refresh the listing.
+        - You run CONTINUOUSLY: observe → think → act → observe, until the objective is complete. Do not stop after one step.
+        - When the objective is finished, call stopSelf(reason: "complete") and give the final answer in the user's language.
+        - If the task cannot be completed (missing info, impossible, repeated failures), call stopSelf with the matching reason instead of looping forever.
+        - Use capture_web_screenshot as visual evidence when you need to see what the user sees; otherwise prefer readPage.
+        - If the page changes or an elementId is stale, call readPage again to refresh the listing.
+
+        \(persistentContinuationPrompt.isEmpty ? "" : "CONTINUATION INSTRUCTION FROM USER (keep doing this until otherwise told):\n\(persistentContinuationPrompt)")
         """
     }
 
@@ -316,5 +390,173 @@ extension BrowserStore {
         return await withCheckedContinuation { cont in
             promptContinuation = cont
         }
+    }
+
+    // MARK: Continuous task API
+
+    /// Start a continuous (multi-step, self-driving) agent task. The loop keeps
+    /// observing → thinking → acting until success, STOP_SELF, a watchdog
+    /// stop, user stop, timeout, max steps or an unrecoverable error.
+    func startContinuousTask(goal: String, continuationPrompt: String = "") {
+        let text = goal.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !text.isEmpty else { return }
+        if isAgentRunning {
+            appendInfo("The agent is still working. Tap STOP before starting a new task.")
+            return
+        }
+        turns.append(ChatTurn(role: .user, kind: .text, text: text))
+        apiHistory.append(.userText(text))
+        captchaPrompted = false
+        taskGoal = text
+        persistentContinuationPrompt = continuationPrompt.trimmingCharacters(in: .whitespacesAndNewlines)
+        runningTask = nil
+
+        isAgentRunning = true
+        agentStatus = .thinking
+        activityStart(goal: text, continuation: persistentContinuationPrompt)
+
+        let handle = Task { [weak self] in
+            await self?.runAgentSession()
+            self?.isAgentRunning = false
+            self?.agentTask = nil
+        }
+        agentTask = handle
+    }
+
+    /// Resume a persisted task (restored by AgentTaskPersistence). Returns true
+    /// when a task was restored and is now running.
+    @discardableResult
+    func resumeContinuousTask() -> Bool {
+        guard let persisted = AgentTaskPersistence.shared.load() else { return false }
+        guard persisted.status == .suspended || persisted.status == .running else { return false }
+        if isAgentRunning { return false }
+        turns.append(ChatTurn(role: .assistant, kind: .info, text: "Resuming previous task: \(persisted.goal)"))
+        taskGoal = persisted.goal
+        persistentContinuationPrompt = persisted.continuationPrompt
+        runningTask = persisted
+        runningTask?.status = .running
+        isAgentRunning = true
+        agentStatus = .thinking
+        activity("↩ Resuming task: \(persisted.goal)")
+        let handle = Task { [weak self] in
+            await self?.runAgentSession()
+            self?.isAgentRunning = false
+            self?.agentTask = nil
+        }
+        agentTask = handle
+        return true
+    }
+
+    /// Suspend the current task (state kept for resume). Called when the app
+    /// goes to background — iOS cannot promise background execution, so the
+    /// honest approach is to persist and offer resume when active again.
+    func suspendContinuousTask() {
+        guard var task = runningTask else { return }
+        task.status = .suspended
+        task.currentStep = "Paused by app backgrounding"
+        task.updatedAt = Date()
+        runningTask = task
+        AgentTaskPersistence.shared.save(task)
+    }
+
+    /// Abandon the persisted task (explicit stop / user dismissal).
+    func clearPersistedTask() {
+        AgentTaskPersistence.shared.clear()
+    }
+
+    // MARK: Continuous task helpers
+
+    private func persistTask() {
+        guard let task = runningTask else { return }
+        AgentTaskPersistence.shared.save(task)
+    }
+
+    private func finishTask(reason: AgentStopReason) {
+        guard var task = runningTask else { return }
+        switch reason {
+        case .success, .selfStopped:
+            task.status = .completed
+            task.progress = 100
+        case .userStopped, .maxSteps, .timeout, .repeatedAction,
+             .repeatedNavigationFailure, .noProgress, .resourceLimit, .cancelled:
+            task.status = .stopped
+        case .confirmationDenied, .networkFailure, .unrecoverableError:
+            task.status = .failed
+        }
+        task.stopReason = reason.rawValue
+        task.updatedAt = Date()
+        if task.currentStep.isEmpty {
+            task.currentStep = reason.label
+        }
+        runningTask = task
+        AgentTaskPersistence.shared.save(task)
+        if reason.isAutoStop {
+            turns.append(ChatTurn(role: .assistant, kind: .info,
+                                  text: "AI stopped automatically because an abnormal execution state was detected (\(reason.label))."))
+        }
+        activity(reason.isAutoStop
+            ? "⛔ \(reason.label) (automatic safety stop)"
+            : "◼ \(reason.label)")
+    }
+
+    private func activityStart(goal: String, continuation: String) {
+        AgentActivityLog.shared.add("▶ Started task: \(goal)")
+        LANActivityCenter.shared.taskStarted(title: goal, continuation: continuation, mode: agentMode.rawValue)
+    }
+
+    private func activity(_ message: String) {
+        AgentActivityLog.shared.add(message)
+        LANActivityCenter.shared.addFeed(message)
+    }
+
+    private func activityStep(_ message: String) {
+        guard var task = runningTask else { return }
+        task.currentStep = message
+        task.updatedAt = Date()
+        task.progress = min(99, max(1, task.stepCount * 100 / max(1, AgentWatchdog.shared.maxSteps)))
+        runningTask = task
+        LANActivityCenter.shared.updateCurrent(currentStep: message, progress: task.progress)
+        AgentActivityLog.shared.add(message)
+        LANActivityCenter.shared.addFeed(message)
+    }
+
+    /// Watchdog bookkeeping after every tool execution.
+    private func trackWatchdog(for call: ToolCallRequest, result: String) {
+        let args = arguments(from: call.argumentsJSON)
+        var signature = call.name
+        if let url = args["url"] as? String {
+            signature += ":\(url)"
+        } else if let query = args["query"] as? String {
+            signature += ":\(query)"
+        } else if let elementId = args["elementId"] as? Int {
+            signature += ":\(elementId)"
+        } else if let text = args["text"] as? String {
+            signature += ":\(text)"
+        }
+        let isNavigation = call.name == "openURL" || call.name == "searchWeb"
+            || call.name == "reload" || call.name == "goBack" || call.name == "goForward"
+        let low = result.lowercased()
+        if isNavigation, low.contains("could not") || low.contains("no active") || low.contains("failed") {
+            AgentWatchdog.shared.recordNavigationFailure()
+            return
+        }
+        if low.contains("none found") || low.contains("nothing found") || low.contains("no results") {
+            AgentWatchdog.shared.recordNoProgress()
+            return
+        }
+        AgentWatchdog.shared.recordAction(signature: signature, title: describeAction(call))
+    }
+
+    /// Realtime visible page context (compressed + deduplicated by the
+    /// pipeline) used in the system prompt for every thinking step.
+    private func visiblePageContextText() async -> String {
+        guard let coordinator = activeCoordinator else {
+            return "Page context: no active tab."
+        }
+        let snapshot = await WebPageContextPipeline.shared.capture(coordinator: coordinator)
+        guard let snapshot else {
+            return "Page context: page is still loading or has no readable content."
+        }
+        return snapshot.compressedText(maxChars: 7000)
     }
 }
