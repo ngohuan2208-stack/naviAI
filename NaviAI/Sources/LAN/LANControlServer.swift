@@ -429,7 +429,7 @@ final class LANControlServer: ObservableObject {
             return "\(host)"
         }
         if let remote = connection.currentPath?.remoteEndpoint {
-            return remote.description
+            return String(describing: remote)
         }
         return "unknown"
     }
