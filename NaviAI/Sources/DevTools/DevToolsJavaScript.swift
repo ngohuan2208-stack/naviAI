@@ -1,4 +1,5 @@
 import Foundation
+import WebKit
 
 /// JavaScript injected into every WKWebView at document start.
 /// Hooks console output, uncaught exceptions and resource timing, and forwards
