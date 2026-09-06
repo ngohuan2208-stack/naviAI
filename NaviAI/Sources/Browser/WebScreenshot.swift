@@ -60,7 +60,7 @@ final class WebScreenshotManager {
         let cap = max(320, maxWidth)
         if image.size.width > CGFloat(cap) {
             let ratio = CGFloat(cap) / image.size.width
-            let newSize = CGSize(width: cap, height: image.size.height * ratio)
+            let newSize = CGSize(width: CGFloat(cap), height: image.size.height * ratio)
             let renderer = UIGraphicsImageRenderer(size: newSize)
             scaled = renderer.image { _ in
                 image.draw(in: CGRect(origin: .zero, size: newSize))

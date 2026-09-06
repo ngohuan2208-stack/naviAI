@@ -216,7 +216,7 @@ final class LANControlServer: ObservableObject {
                                                   type: Self.serviceType,
                                                   domain: nil)
             listener.stateUpdateHandler = { [weak self] state in
-                Task { @MainActor in
+                Task { @MainActor [weak self] in
                     guard let self else { return }
                     switch state {
                     case .ready:
@@ -235,11 +235,13 @@ final class LANControlServer: ObservableObject {
                 }
             }
             listener.newConnectionHandler = { [weak self] connection in
-                guard let self else {
-                    connection.cancel()
-                    return
+                Task { @MainActor [weak self] in
+                    guard let self else {
+                        connection.cancel()
+                        return
+                    }
+                    self.handleNewConnection(connection)
                 }
-                self.handleNewConnection(connection)
             }
             listener.start(queue: serverQueue)
             self.listener = listener
@@ -422,7 +424,7 @@ final class LANControlServer: ObservableObject {
     }
 
     private func handlePair(request: LANHTTPRequest, http: LANHTTPConnection, connection: NWConnection) async {
-        let remote = remoteKey(connection)
+        let remote = Self.remoteKey(connection)
         guard LANRateLimiter.shared.allow(key: "pair:" + remote, maxPerWindow: 10, window: 300) else {
             await http.sendJSON(["error": "Too many pairing attempts"], status: 429)
             return
@@ -443,7 +445,7 @@ final class LANControlServer: ObservableObject {
     }
 
     private func handleHTTPCommand(request: LANHTTPRequest, http: LANHTTPConnection, connection: NWConnection) async {
-        let remote = remoteKey(connection)
+        let remote = Self.remoteKey(connection)
         guard LANRateLimiter.shared.allow(key: "cmd:" + remote, maxPerWindow: 40, window: 60) else {
             await http.sendJSON(["error": "Too many commands"], status: 429)
             return
@@ -522,7 +524,7 @@ final class LANControlServer: ObservableObject {
 
         socket.onMessage = { [weak self] text in
             Task { @MainActor [weak self] in
-                self?.handleSocketMessage(text, tokenHash: tokenHash)
+                await self?.handleSocketMessage(text, tokenHash: tokenHash)
             }
         }
         socket.onClose = { [weak self] in
@@ -554,7 +556,7 @@ final class LANControlServer: ObservableObject {
         }
     }
 
-    private func handleSocketMessage(_ text: String, tokenHash: String) {
+    private func handleSocketMessage(_ text: String, tokenHash: String) async {
         guard let socketSession = sessionByHash[tokenHash] else { return }
         guard let data = text.data(using: .utf8) else { return }
         guard let msg = LANProtocol.decode(data) else {

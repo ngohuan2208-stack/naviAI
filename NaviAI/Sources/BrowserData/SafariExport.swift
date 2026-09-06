@@ -10,6 +10,7 @@ enum SafariExport {
         var associatedURLs: [String]
     }
 
+    @MainActor
     static func build(browser: BrowserStore) -> Data? {
         let conversations = ConversationStore.shared.conversations.prefix(200).map { convo in
             ExportedConversation(title: convo.title,
