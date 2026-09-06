@@ -72,6 +72,25 @@
 		7E00000000000000000000AA /* AppIntentRouter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7E00000000000000000000BA /* AppIntentRouter.swift */; };
 		7E00000000000000000000BC /* AmbientSceneView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7E00000000000000000000BD /* AmbientSceneView.swift */; };
 
+		7E0000000000000000000200 /* AgentWatchdog.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7E0000000000000000000100 /* AgentWatchdog.swift */; };
+		7E0000000000000000000201 /* AgentTaskPersistence.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7E0000000000000000000101 /* AgentTaskPersistence.swift */; };
+		7E0000000000000000000202 /* WebPageContextPipeline.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7E0000000000000000000102 /* WebPageContextPipeline.swift */; };
+		7E0000000000000000000203 /* WebScreenshot.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7E0000000000000000000103 /* WebScreenshot.swift */; };
+		7E0000000000000000000204 /* BrowserProfile.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7E0000000000000000000104 /* BrowserProfile.swift */; };
+		7E0000000000000000000205 /* LANControlServer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7E0000000000000000000110 /* LANControlServer.swift */; };
+		7E0000000000000000000206 /* LANPairing.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7E0000000000000000000111 /* LANPairing.swift */; };
+		7E0000000000000000000207 /* LANSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7E0000000000000000000112 /* LANSession.swift */; };
+		7E0000000000000000000208 /* LANWebSocket.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7E0000000000000000000113 /* LANWebSocket.swift */; };
+		7E0000000000000000000209 /* LANWebUI.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7E0000000000000000000114 /* LANWebUI.swift */; };
+		7E000000000000000000020A /* LANProtocol.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7E0000000000000000000115 /* LANProtocol.swift */; };
+		7E000000000000000000020B /* LANSecurity.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7E0000000000000000000116 /* LANSecurity.swift */; };
+		7E000000000000000000020C /* LANActivity.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7E0000000000000000000117 /* LANActivity.swift */; };
+		7E000000000000000000020D /* LANDiagnostics.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7E0000000000000000000118 /* LANDiagnostics.swift */; };
+		7E000000000000000000020E /* BrowserDataManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7E0000000000000000000120 /* BrowserDataManager.swift */; };
+		7E000000000000000000020F /* SafariImport.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7E0000000000000000000121 /* SafariImport.swift */; };
+		7E0000000000000000000210 /* SafariExport.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7E0000000000000000000122 /* SafariExport.swift */; };
+		7E0000000000000000000211 /* LANRemoteSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7E0000000000000000000130 /* LANRemoteSettingsView.swift */; };
+		7E0000000000000000000212 /* BrowserDataSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7E0000000000000000000131 /* BrowserDataSettingsView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -142,6 +161,25 @@
 		7E00000000000000000000BD /* AmbientSceneView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AmbientSceneView.swift; sourceTree = "<group>"; };
 
 		7E00000000000000000000BA /* AppIntentRouter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppIntentRouter.swift; sourceTree = "<group>"; };
+		7E0000000000000000000100 /* AgentWatchdog.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = AgentWatchdog.swift; sourceTree = "<group>"; };
+		7E0000000000000000000101 /* AgentTaskPersistence.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = AgentTaskPersistence.swift; sourceTree = "<group>"; };
+		7E0000000000000000000102 /* WebPageContextPipeline.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = WebPageContextPipeline.swift; sourceTree = "<group>"; };
+		7E0000000000000000000103 /* WebScreenshot.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = WebScreenshot.swift; sourceTree = "<group>"; };
+		7E0000000000000000000104 /* BrowserProfile.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = BrowserProfile.swift; sourceTree = "<group>"; };
+		7E0000000000000000000110 /* LANControlServer.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = LANControlServer.swift; sourceTree = "<group>"; };
+		7E0000000000000000000111 /* LANPairing.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = LANPairing.swift; sourceTree = "<group>"; };
+		7E0000000000000000000112 /* LANSession.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = LANSession.swift; sourceTree = "<group>"; };
+		7E0000000000000000000113 /* LANWebSocket.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = LANWebSocket.swift; sourceTree = "<group>"; };
+		7E0000000000000000000114 /* LANWebUI.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = LANWebUI.swift; sourceTree = "<group>"; };
+		7E0000000000000000000115 /* LANProtocol.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = LANProtocol.swift; sourceTree = "<group>"; };
+		7E0000000000000000000116 /* LANSecurity.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = LANSecurity.swift; sourceTree = "<group>"; };
+		7E0000000000000000000117 /* LANActivity.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = LANActivity.swift; sourceTree = "<group>"; };
+		7E0000000000000000000118 /* LANDiagnostics.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = LANDiagnostics.swift; sourceTree = "<group>"; };
+		7E0000000000000000000120 /* BrowserDataManager.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = BrowserDataManager.swift; sourceTree = "<group>"; };
+		7E0000000000000000000121 /* SafariImport.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = SafariImport.swift; sourceTree = "<group>"; };
+		7E0000000000000000000122 /* SafariExport.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = SafariExport.swift; sourceTree = "<group>"; };
+		7E0000000000000000000130 /* LANRemoteSettingsView.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = LANRemoteSettingsView.swift; sourceTree = "<group>"; };
+		7E0000000000000000000131 /* BrowserDataSettingsView.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = BrowserDataSettingsView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -170,7 +208,9 @@
 				FDAFB9AE972BAE168D236A6F /* AgentTools.swift */,
 				C4A5E3C1C27FE9B3BED57731 /* AgentVision.swift */,
 							7E000000000000000000000D /* AgentToolRegistry.swift */,
-);
+
+				7E0000000000000000000100 /* AgentWatchdog.swift */,
+				7E0000000000000000000101 /* AgentTaskPersistence.swift */,);
 			path = Agent;
 			sourceTree = "<group>";
 		};
@@ -182,7 +222,10 @@
 				41171AA6A083093A5A7E56A7 /* WebCoordinator.swift */,
 				59F36B642B8AB22928C7D135 /* WebSurfaceView.swift */,
 							7E000000000000000000000B /* InteractionEngine.swift */,
-);
+
+				7E0000000000000000000102 /* WebPageContextPipeline.swift */,
+				7E0000000000000000000103 /* WebScreenshot.swift */,
+				7E0000000000000000000104 /* BrowserProfile.swift */,);
 			path = Browser;
 			sourceTree = "<group>";
 		};
@@ -232,7 +275,9 @@
 			isa = PBXGroup;
 			children = (
 				4A47C0FE76CEDC40A7426DF7 /* SettingsView.swift */,
-			);
+			
+				7E0000000000000000000130 /* LANRemoteSettingsView.swift */,
+				7E0000000000000000000131 /* BrowserDataSettingsView.swift */,);
 			path = Settings;
 			sourceTree = "<group>";
 		};
@@ -273,6 +318,8 @@
 				0C2509F51EEE50FED4317EF7 /* Research */,
 				7C6EE239E7D51B5D41EB6BA7 /* Private */,
 				F699C1E510401912545D7A83 /* Tabs */,
+				7E0000000000000000000140 /* LAN */,
+				7E0000000000000000000141 /* BrowserData */,
 				7E00000000000000000000C0 /* Network */,
 				7E00000000000000000000C1 /* DevTools */,
 			);
@@ -483,6 +530,32 @@
 			path = Welcome;
 			sourceTree = "<group>";
 		};
+		7E0000000000000000000140 /* LAN */ = {
+			isa = PBXGroup;
+			children = (
+				7E0000000000000000000110 /* LANControlServer.swift */,
+				7E0000000000000000000111 /* LANPairing.swift */,
+				7E0000000000000000000112 /* LANSession.swift */,
+				7E0000000000000000000113 /* LANWebSocket.swift */,
+				7E0000000000000000000114 /* LANWebUI.swift */,
+				7E0000000000000000000115 /* LANProtocol.swift */,
+				7E0000000000000000000116 /* LANSecurity.swift */,
+				7E0000000000000000000117 /* LANActivity.swift */,
+				7E0000000000000000000118 /* LANDiagnostics.swift */,
+			);
+			path = LAN;
+			sourceTree = "<group>";
+		}};
+		7E0000000000000000000141 /* BrowserData */ = {
+			isa = PBXGroup;
+			children = (
+				7E0000000000000000000120 /* BrowserDataManager.swift */,
+				7E0000000000000000000121 /* SafariImport.swift */,
+				7E0000000000000000000122 /* SafariExport.swift */,
+			);
+			path = BrowserData;
+			sourceTree = "<group>";
+		}};
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
@@ -615,6 +688,25 @@
 				7E0000000000000000000012 /* HistoryStore.swift in Sources */,
 				D4EE014303B395ADDCE7C9EA /* OnboardingWelcomeView.swift in Sources */,
 				6F941ED28C5D10AEA0C6984C /* Chat.swift in Sources */,
+				7E0000000000000000000212 /* BrowserDataSettingsView.swift in Sources */,
+				7E0000000000000000000211 /* LANRemoteSettingsView.swift in Sources */,
+				7E0000000000000000000210 /* SafariExport.swift in Sources */,
+				7E000000000000000000020F /* SafariImport.swift in Sources */,
+				7E000000000000000000020E /* BrowserDataManager.swift in Sources */,
+				7E000000000000000000020D /* LANDiagnostics.swift in Sources */,
+				7E000000000000000000020C /* LANActivity.swift in Sources */,
+				7E000000000000000000020B /* LANSecurity.swift in Sources */,
+				7E000000000000000000020A /* LANProtocol.swift in Sources */,
+				7E0000000000000000000209 /* LANWebUI.swift in Sources */,
+				7E0000000000000000000208 /* LANWebSocket.swift in Sources */,
+				7E0000000000000000000207 /* LANSession.swift in Sources */,
+				7E0000000000000000000206 /* LANPairing.swift in Sources */,
+				7E0000000000000000000205 /* LANControlServer.swift in Sources */,
+				7E0000000000000000000204 /* BrowserProfile.swift in Sources */,
+				7E0000000000000000000203 /* WebScreenshot.swift in Sources */,
+				7E0000000000000000000202 /* WebPageContextPipeline.swift in Sources */,
+				7E0000000000000000000201 /* AgentTaskPersistence.swift in Sources */,
+				7E0000000000000000000200 /* AgentWatchdog.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
