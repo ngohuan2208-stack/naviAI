@@ -109,6 +109,9 @@ final class JavaScriptRunner {
         context.evaluateScript(code)
 
         let duration = Int(start.timeIntervalSinceNow * -1000)
+        return Result(stdout: output, stderr: errors, exitCode: errors.isEmpty ? 0 : 1, durationMs: duration)
+    }
+}
 
 // MARK: - Store
 
@@ -248,9 +251,5 @@ final class CodeLabStore: ObservableObject {
         let decoder = JSONDecoder()
         if let data = UserDefaults.standard.data(forKey: historyKey), let items = try? decoder.decode([CodeSnippet].self, from: data) { history = items }
         if let data = UserDefaults.standard.data(forKey: snippetsKey), let items = try? decoder.decode([CodeSnippet].self, from: data) { savedSnippets = items }
-    }
-}
-        let exitCode = errors.isEmpty ? 0 : 1
-        return Result(stdout: output, stderr: errors, exitCode: exitCode, durationMs: duration)
     }
 }

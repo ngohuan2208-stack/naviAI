@@ -1,7 +1,6 @@
 import Foundation
 
 // MARK: - C Language Interpreter (subset)
-// Interprets a practical subset of C for educational snippets.
 
 public struct CInterpreterResult {
     public let stdout: String
@@ -45,6 +44,13 @@ public final class CInterpreter {
             case .parseError(let m): stderr = "Parse error: \(m)"
             case .runtimeError(let m): stderr = "Runtime error: \(m)"
             }
+            exitCode = 1
+        } catch {
+            stderr = "Error: \(error.localizedDescription)"
+            exitCode = 1
+        }
+        let duration = Int(start.timeIntervalSinceNow * -1000)
+        if stdout.count > maxOutput {
 
 // MARK: - Lexer
 
@@ -150,7 +156,7 @@ extension CInterpreter {
                 }
                 let ops = ["<<=",">>=","...","==","!=","<=",">=","&&","||","<<",">>",
                            "++","--","+=","-=","*=","/=","->","+","-","*","/","%","<",">",
-                           "!","&","|","^","~","=","(",")","{","}","[","]",";",",",".","?",":", "@"]
+                           "!","&","|","^","~","=","(",")","{","}","[","]",";",",",".","?",":"]
                 var matched = false
                 for op in ops {
                     let opChars = Array(op)
@@ -169,6 +175,31 @@ extension CInterpreter {
         }
 
         private func peek(_ o: Int) -> Character { (pos + o < src.count) ? src[pos + o] : "\0" }
+        func current() -> Token { (pos < tokens.count) ? tokens[pos] : .eof }
+        func advance() -> Token { let t = current(); if pos < tokens.count { pos += 1 }; return t }
+        func curLine() -> Int { line }
+        func expectOp(_ s: String) throws {
+            if case .op(let o) = current(), o == s { advance() }
+            else { throw CInterpreterError.parseError("expected '\(s)' at line \(line)") }
+        }
+        func expectKeyword(_ s: String) throws {
+            if case .keyword(let k) = current(), k == s { advance() }
+            else { throw CInterpreterError.parseError("expected '\(s)' at line \(line)") }
+        }
+    }
+}
+
+private extension Character {
+    var isHexDigit: Bool {
+        isNumber || ("a"..."f").contains(lowercased().first ?? "\0")
+    }
+}
+
+            stdout = String(stdout.prefix(maxOutput)) + "\n... (truncated)"
+        }
+        return CInterpreterResult(stdout: stdout, stderr: stderr, exitCode: exitCode, durationMs: duration, steps: steps)
+    }
+}
 
 // MARK: - AST
 
@@ -193,13 +224,12 @@ extension CInterpreter {
     }
 }
 
-// MARK: - Parser
+// MARK: - Parser (top level)
 
 extension CInterpreter {
     final class Parser {
         let lexer: Lexer
         var functions: [Function] = []
-        var globals: [(String, String, Expr?)] = []
 
         init(lexer: Lexer) { self.lexer = lexer }
 
@@ -220,13 +250,7 @@ extension CInterpreter {
             if case .op(let o) = lexer.current(), o == "(" {
                 try parseFunctionBody(retType: retType, name: name); return
             }
-            if case .op(let o) = lexer.current(), o == "=" {
-                lexer.advance()
-                let initExpr = try tryParseExpr()
-                globals.append((retType, name, initExpr))
-            } else {
-                globals.append((retType, name, nil))
-            }
+            while case .op(let o) = lexer.current(), o != ";" { lexer.advance() }
             try lexer.expectOp(";")
         }
 
@@ -245,6 +269,24 @@ extension CInterpreter {
             let body = try parseBlock()
             _ = retType
             functions.append(Function(name: name, params: params, body: body))
+        }
+
+        private func parseType() throws -> String {
+            var t = ""
+            if case .keyword(let k) = lexer.current(), ["int","char","void"].contains(k) {
+                t = k; lexer.advance()
+            } else if case .ident(let n) = lexer.current() {
+                t = n; lexer.advance()
+            } else {
+                throw CInterpreterError.parseError("expected type at line \(lexer.curLine())")
+            }
+            while case .op(let o) = lexer.current(), o == "*" { t += "*"; lexer.advance() }
+            return t
+        }
+
+        private func parseBlock() throws -> Stmt {
+
+// MARK: - Parser (statements)
 
 extension CInterpreter.Parser {
     fileprivate func parseStmt() throws -> Stmt {
@@ -255,26 +297,23 @@ extension CInterpreter.Parser {
                 let cond = try tryParseExpr(); try lexer.expectOp(")")
                 let thenS = try parseStmt()
                 var elseS: Stmt? = nil
-                if case .keyword(let k2) = lexer.current(), k2 == "else" { lexer.advance(); elseS = try parseStmt() }
+                if case .keyword(let k2) = lexer.current(), k2 == "else" {
+                    lexer.advance(); elseS = try parseStmt()
+                }
                 return .if(cond, thenS, elseS)
             case "while":
                 lexer.advance(); try lexer.expectOp("(")
                 let cond = try tryParseExpr(); try lexer.expectOp(")")
                 return .while(cond, try parseStmt())
             case "for":
-                lexer.advance(); try lexer.expectOp("(")
-                let ini: Stmt? = isStmtStart() ? try parseStmt() : ({ try lexer.expectOp(";"); return nil }() as Stmt?)
-                let co: Expr? = (case .op(let o) = lexer.current(), o != ";") ? try tryParseExpr() : nil
-                try lexer.expectOp(";")
-                let st: Expr? = (case .op(let o) = lexer.current(), o != ")") ? try tryParseExpr() : nil
-                try lexer.expectOp(")")
-                _ = ini; _ = st
-                return .for(ini, co, st, try parseStmt())
+                lexer.advance()
+                return try parseFor()
             case "do":
                 lexer.advance()
                 let body = try parseStmt()
                 try lexer.expectKeyword("while"); try lexer.expectOp("(")
-                let cond = try tryParseExpr(); try lexer.expectOp(")"); try lexer.expectOp(";")
+                let cond = try tryParseExpr()
+                try lexer.expectOp(")"); try lexer.expectOp(";")
                 return .do(body, cond)
             case "return":
                 lexer.advance()
@@ -284,7 +323,6 @@ extension CInterpreter.Parser {
                 return .return(e)
             case "break": lexer.advance(); try lexer.expectOp(";"); return .break
             case "continue": lexer.advance(); try lexer.expectOp(";"); return .continue
-            case "int", "char", "void": return try parseDecl()
             default: break
             }
         }
@@ -292,23 +330,68 @@ extension CInterpreter.Parser {
         let e = try tryParseExpr(); try lexer.expectOp(";"); return .expr(e)
     }
 
-    fileprivate func parseDecl() throws -> Stmt {
+    private func parseFor() throws -> Stmt {
+        try lexer.expectOp("(")
+        let ini: Stmt?
+        if isDeclStart() { ini = try parseDeclNoSemi() }
+        else if isExprStart() { ini = .expr(try tryParseExpr()) }
+        else { ini = nil }
+        try lexer.expectOp(";")
+        let co: Expr? = isExprStart() ? try tryParseExpr() : nil
+        try lexer.expectOp(";")
+        let st: Expr? = isExprStart() ? try tryParseExpr() : nil
+        try lexer.expectOp(")")
+        return .for(ini, co, st, try parseStmt())
+    }
+
+    private func parseDecl() throws -> Stmt {
         let t = try parseType()
         var name = "__v"
         if case .ident(let n) = lexer.current() { lexer.advance(); name = n }
-        var init: Expr? = nil
-        if case .op(let o) = lexer.current(), o == "=" { lexer.advance(); init = try tryParseExpr() }
+        var ini: Expr? = nil
+        if case .op(let o) = lexer.current(), o == "=" { lexer.advance(); ini = try tryParseExpr() }
         try lexer.expectOp(";")
-        return .decl(t, name, init)
+        return .decl(t, name, ini)
     }
 
-    fileprivate func isStmtStart() -> Bool {
+    private func parseDeclNoSemi() throws -> Stmt {
+        let t = try parseType()
+        var name = "__v"
+        if case .ident(let n) = lexer.current() { lexer.advance(); name = n }
+        var ini: Expr? = nil
+        if case .op(let o) = lexer.current(), o == "=" { lexer.advance(); ini = try tryParseExpr() }
+        return .decl(t, name, ini)
+    }
+
+    private func isDeclStart() -> Bool {
+        if case .keyword(let k) = lexer.current() { return ["int","char","void"].contains(k) }
+        return false
+    }
+
+    private func isExprStart() -> Bool {
         switch lexer.current() {
-        case .keyword(let k): return ["int","char","void","if","while","for","do","return","break","continue"].contains(k)
-        case .op(let o): return o == "{"
+        case .op(let o): return o != ";" && o != ")"
+        case .eof: return false
         default: return true
         }
     }
+}
+            try lexer.expectOp("{")
+            var stmts: [Stmt] = []
+            while case .op(let o) = lexer.current(), o != "}" {
+                stmts.append(try parseStmt())
+            }
+            try lexer.expectOp("}")
+            return .block(stmts)
+        }
+
+        fileprivate func matchOp(_ s: String) -> Bool {
+            if case .op(let o) = lexer.current(), o == s { lexer.advance(); return true }
+            return false
+        }
+    }
+
+// MARK: - Parser (expressions)
 
 extension CInterpreter.Parser {
     fileprivate func tryParseExpr() throws -> Expr { try parseAssign() }
@@ -316,7 +399,8 @@ extension CInterpreter.Parser {
     fileprivate func parseAssign() throws -> Expr {
         let lhs = try parseTernary()
         if case .op(let o) = lexer.current(), ["=","+=","-=","*=","/="].contains(o) {
-            lexer.advance(); return .assign(o, lhs, try parseAssign())
+            lexer.advance()
+            return .assign(o, lhs, try parseAssign())
         }
         return lhs
     }
@@ -325,7 +409,9 @@ extension CInterpreter.Parser {
         let cond = try parseOr()
         if case .op(let o) = lexer.current(), o == "?" {
             lexer.advance()
-            let a = try tryParseExpr(); try lexer.expectOp(":"); let b = try parseTernary()
+            let a = try tryParseExpr()
+            try lexer.expectOp(":")
+            let b = try parseTernary()
             return .binary("?", cond, .binary(":", a, b))
         }
         return cond
@@ -337,7 +423,7 @@ extension CInterpreter.Parser {
     fileprivate func parseXor() throws -> Expr { bin(parseBitAnd, ["^"]) }
     fileprivate func parseBitAnd() throws -> Expr { bin(parseEq, ["&"]) }
 
-    fileprivate func parseEq() throws -> Expr {
+    private func parseEq() throws -> Expr {
         var l = try parseComp()
         while case .op(let o) = lexer.current(), ["==","!="].contains(o) {
             lexer.advance(); l = .binary(o, l, try parseComp())
@@ -345,7 +431,7 @@ extension CInterpreter.Parser {
         return l
     }
 
-    fileprivate func parseComp() throws -> Expr {
+    private func parseComp() throws -> Expr {
         var l = try parseShift()
         while case .op(let o) = lexer.current(), ["<",">","<=",">="].contains(o) {
             lexer.advance(); l = .binary(o, l, try parseShift())
@@ -353,7 +439,7 @@ extension CInterpreter.Parser {
         return l
     }
 
-    fileprivate func parseShift() throws -> Expr {
+    private func parseShift() throws -> Expr {
         var l = try parseAdd()
         while case .op(let o) = lexer.current(), ["<<",">>"].contains(o) {
             lexer.advance(); l = .binary(o, l, try parseAdd())
@@ -361,7 +447,7 @@ extension CInterpreter.Parser {
         return l
     }
 
-    fileprivate func parseAdd() throws -> Expr {
+    private func parseAdd() throws -> Expr {
         var l = try parseMul()
         while case .op(let o) = lexer.current(), ["+","-"].contains(o) {
             lexer.advance(); l = .binary(o, l, try parseMul())
@@ -369,7 +455,7 @@ extension CInterpreter.Parser {
         return l
     }
 
-    fileprivate func parseMul() throws -> Expr {
+    private func parseMul() throws -> Expr {
         var l = try parseUnary()
         while case .op(let o) = lexer.current(), ["*","/","%"].contains(o) {
             lexer.advance(); l = .binary(o, l, try parseUnary())
@@ -389,279 +475,22 @@ extension CInterpreter.Parser {
 
     fileprivate func parsePostfix() throws -> Expr {
         var e = try parsePrimary()
-
-// MARK: - Virtual Machine
-
-extension CInterpreter {
-    final class VM {
-        let interpreter: CInterpreter
-        let output: (String) -> Void
-        var steps = 0
-        var heap: [UInt8]
-        var heapUsed = 0
-        var functions: [Function] = []
-        var globals: [(String, String, Expr?)] = []
-        var vars: [[String: Int]] = [[:]]
-        var returnValue: Int? = nil
-        var breaking = false, continuing = false
-
-        init(interpreter: CInterpreter, output: @escaping (String) -> Void) {
-            self.interpreter = interpreter
-            self.output = output
-            self.heap = Array(repeating: 0, count: interpreter.maxHeap)
-        }
-
-        func execute(_ program: [Function]) throws {
-            functions = program
-            for (t, n, ie) in globals {
-                let v = try ie.map { try eval($0) } ?? 0
-                vars[0][n] = v; _ = t
-            }
-            guard let main = program.first(where: { $0.name == "main" }) else {
-                throw CInterpreterError.runtimeError("no main() function found")
-            }
-            try call(main, [])
-        }
-
-        private func checkSteps() throws {
-            steps += 1
-            if steps > interpreter.maxSteps { throw CInterpreterError.timeout }
-        }
-
-        private func get(_ n: String) -> Int {
-            for i in stride(from: vars.count - 1, through: 0, by: -1) {
-                if let v = vars[i][n] { return v }
-            }
-            return 0
-        }
-        private func set(_ n: String, _ v: Int) {
-            for i in stride(from: vars.count - 1, through: 0, by: -1) {
-                if vars[i][n] != nil { vars[i][n] = v; return }
-            }
-            vars[vars.count - 1][n] = v
-        }
-
-        private func call(_ fn: Function, _ args: [Int]) throws {
-            var frame: [String: Int] = [:]
-            for (i, p) in fn.params.enumerated() { frame[p.1] = i < args.count ? args[i] : 0 }
-            vars.append(frame)
-            try exec(fn.body)
-            vars.removeLast()
-        }
-
-        private func exec(_ s: Stmt) throws {
-            checkSteps()
-            if returnValue != nil || breaking || continuing { return }
-            switch s {
-            case .expr(let e): _ = try eval(e)
-            case .decl(let t, let n, let ini):
-                let v = try ini.map { try eval($0) } ?? 0
-                set(n, v); _ = t
-            case .block(let ss):
-                for s in ss { try exec(s); if returnValue != nil || breaking || continuing { break } }
-            case .if(let c, let t, let e):
-                if try eval(c) != 0 { try exec(t) } else if let e = e { try exec(e) }
-            case .while(let c, let b):
-                while try eval(c) != 0 { breaking = false; try exec(b); if returnValue != nil { break }; if breaking { breaking = false; break }; if continuing { continuing = false } }
-            case .for(let i, let c, let st, let b):
-                if let i = i { try exec(i) }
-
-extension CInterpreter.VM {
-    private func eval(_ e: Expr) throws -> Int {
-        checkSteps()
-        switch e {
-        case .intLit(let v): return v
-        case .strLit(let s):
-            let p = heapUsed; let bytes = Array(s.utf8)
-            for b in bytes { heap[heapUsed] = b; heapUsed += 1 }
-            heap[heapUsed] = 0; heapUsed += 1; return p
-        case .ident(let n): return get(n)
-        case .unary(let op, let e):
-            let v = try eval(e)
-            switch op {
-            case "!": return v == 0 ? 1 : 0
-            case "~": return ~v
-            case "-": return -v
-            case "*": return (v >= 0 && v < heapUsed) ? Int(heap[v]) : 0
-            case "&": return v
-            case "++": return v + 1
-            case "--": return v - 1
-            default: return v
-            }
-        case .binary(let op, let l, let r):
-            let a = try eval(l), b = try eval(r)
-            switch op {
-            case "+": return a + b; case "-": return a - b; case "*": return a * b
-            case "/": return b != 0 ? a / b : 0; case "%": return b != 0 ? a % b : 0
-            case "<": return a < b ? 1 : 0; case ">": return a > b ? 1 : 0
-            case "<=": return a <= b ? 1 : 0; case ">=": return a >= b ? 1 : 0
-            case "==": return a == b ? 1 : 0; case "!=": return a != b ? 1 : 0
-            case "&&": return (a != 0 && b != 0) ? 1 : 0; case "||": return (a != 0 || b != 0) ? 1 : 0
-            case "&": return a & b; case "|": return a | b; case "^": return a ^ b
-            case "<<": return a << b; case ">>": return a >> b
-            case "?": return a; case ":": return b
-            default: return 0
-            }
-        case .call(let name, let args):
-            let a = try args.map { try eval($0) }
-            return try callFunc(name, a)
-        case .addr(let e): return try eval(e)
-        case .deref(let e):
-            let p = try eval(e); return (p >= 0 && p < heapUsed) ? Int(heap[p]) : 0
-        case .index(let arr, let idx):
-            let b = try eval(arr), i = try eval(idx)
-            let p = b + i; return (p >= 0 && p < heapUsed) ? Int(heap[p]) : 0
-        case .assign(let op, let lhs, let rhs):
-            let rv = try eval(rhs)
-            if case .ident(let n) = lhs {
-                var c = get(n)
-                switch op {
-                case "=": c = rv; case "+=": c += rv; case "-=": c -= rv
-                case "*=": c *= rv; case "/=": c = rv != 0 ? c / rv : 0
-                default: c = rv
-                }
-                set(n, c); return c
-            }
-            return rv
-        case .cast(_, let e): return try eval(e)
-        case .sizeof(let t):
-            if t.contains("*") { return 8 }
-            if t == "int" { return 4 }
-            if t == "char" { return 1 }
-            return 4
-        }
-    }
-
-
-extension CInterpreter.VM {
-    private func callFunc(_ name: String, _ args: [Int]) throws -> Int {
-        switch name {
-        case "printf": return try printf(args)
-        case "malloc": return try malloc(args)
-        case "free": return 0
-        case "strlen":
-            let p = args.first ?? 0; var l = 0; var i = p
-            while i >= 0 && i < heapUsed && heap[i] != 0 { l += 1; i += 1 }; return l
-        case "strcpy":
-            guard args.count >= 2 else { return 0 }
-            let d = args[0], s = args[1]; var i = 0; var p = s
-            while p >= 0 && p < heapUsed && heap[p] != 0 && d + i >= 0 && d + i < heapUsed {
-                heap[d + i] = heap[p]; p += 1; i += 1
-            }
-            if d + i >= 0 && d + i < heapUsed { heap[d + i] = 0 }
-            return d
-        case "strcmp":
-            guard args.count >= 2 else { return 0 }
-            let s1 = getString(args[0]), s2 = getString(args[1])
-            return s1 == s2 ? 0 : (s1 < s2 ? -1 : 1)
-        case "memset":
-            guard args.count >= 3 else { return 0 }
-            let d = args[0], v = UInt8(args[1] & 0xFF), n = args[2]
-            for i in 0..<n { if d + i >= 0 && d + i < heapUsed { heap[d + i] = v } }
-            return d
-        case "memcpy":
-            guard args.count >= 3 else { return 0 }
-            let d = args[0], s = args[1], n = args[2]
-            for i in 0..<n {
-                if s + i >= 0 && s + i < heapUsed && d + i >= 0 && d + i < heapUsed {
-                    heap[d + i] = heap[s + i]
-                }
-            }
-            return d
-        case "atoi": return Int(getString(args.first ?? 0).trimmingCharacters(in: .whitespaces)) ?? 0
-        case "putchar":
-            if let c = args.first { output(String(UnicodeScalar(UInt8(c & 0xFF)))) }
-            return args.first ?? 0
-        case "abs": return args.first.map { abs($0) } ?? 0
-        case "getchar": return 0
-        default:
-            if let fn = functions.first(where: { $0.name == name }) {
-                try call(fn, args); return returnValue ?? 0
-            }
-            return 0
-        }
-    }
-
-    private func printf(_ args: [Int]) throws -> Int {
-        guard !args.isEmpty else { return 0 }
-        let fmt = getString(args[0])
-        var out = "", ai = 1, i = 0
-        let ch = Array(fmt)
-        while i < ch.count {
-            if ch[i] == "%", i + 1 < ch.count {
-                i += 1
-                switch ch[i] {
-                case "d", "i": out += "\(ai < args.count ? args[ai] : 0)"; ai += 1
-                case "u": out += "\(ai < args.count ? args[ai] : 0)"; ai += 1
-                case "x": out += String(ai < args.count ? args[ai] : 0, radix: 16); ai += 1
-                case "X": out += String(ai < args.count ? args[ai] : 0, radix: 16).uppercased(); ai += 1
-                case "o": out += String(ai < args.count ? args[ai] : 0, radix: 8); ai += 1
-                case "c": out += String(UnicodeScalar(UInt8((ai < args.count ? args[ai] : 0) & 0xFF))); ai += 1
-                case "s": out += getString(ai < args.count ? args[ai] : 0); ai += 1
-                case "p": out += "0x" + String(ai < args.count ? args[ai] : 0, radix: 16); ai += 1
-                case "l":
-                    if i + 1 < ch.count, ch[i + 1] == "d" {
-                        out += "\(ai < args.count ? args[ai] : 0)"; ai += 1; i += 1
-                    }
-                case "%": out += "%"
-                default: out += "%" + String(ch[i])
-                }
-            } else { out += String(ch[i]) }
-            i += 1
-        }
-        output(out); return out.count
-    }
-
-    private func malloc(_ args: [Int]) throws -> Int {
-        let size = args.first ?? 0
-        if size <= 0 || size > interpreter.maxHeap - heapUsed { throw CInterpreterError.memoryLimit }
-        let addr = heapUsed; heapUsed += size
-        return addr
-    }
-}
-    private func getString(_ p: Int) -> String {
-        if p < 0 || p >= heapUsed { return "" }
-        var s = ""; var i = p
-        while i < heapUsed && heap[i] != 0 { s += String(UnicodeScalar(heap[i])); i += 1 }
-        return s
-    }
-}
-                while true {
-                    if let c = c, try eval(c) == 0 { break }
-                    breaking = false; try exec(b)
-                    if returnValue != nil { break }
-                    if breaking { breaking = false; break }
-                    if continuing { continuing = false }
-                    if let st = st { _ = try eval(st) }
-                }
-            case .do(let b, let c):
-                repeat {
-                    breaking = false; try exec(b)
-                    if returnValue != nil { break }
-                    if breaking { breaking = false; break }
-                    if continuing { continuing = false }
-                    if try eval(c) == 0 { break }
-                } while true
-            case .return(let e): returnValue = try e.map { try eval($0) } ?? 0
-            case .break: breaking = true
-            case .continue: continuing = true
-            }
-        }
-    }
-}
         while true {
             if case .op(let o) = lexer.current(), o == "[" {
-                lexer.advance(); let idx = try tryParseExpr(); try lexer.expectOp("]"); e = .index(e, idx)
+                lexer.advance()
+                let idx = try tryParseExpr()
+                try lexer.expectOp("]")
+                e = .index(e, idx)
             } else if case .op(let o) = lexer.current(), o == "(" {
                 if case .ident(let name) = e {
-                    lexer.advance(); var args: [Expr] = []
+                    lexer.advance()
+                    var args: [Expr] = []
                     if case .op(let o2) = lexer.current(), o2 != ")" {
                         repeat { args.append(try tryParseExpr()) } while matchOp(",")
                     }
-                    try lexer.expectOp(")"); e = .call(name, args)
+                    try lexer.expectOp(")")
+                    e = .call(name, args)
                 } else { break }
-            } else if case .op(let o) = lexer.current(), o == "++" || o == "--" {
-                let op = (case .op(let x) = lexer.current())!; lexer.advance(); e = .unary(op, e)
             } else { break }
         }
         return e
@@ -672,93 +501,398 @@ extension CInterpreter.VM {
         case .intLit(let v): lexer.advance(); return .intLit(v)
         case .charLit(let v): lexer.advance(); return .intLit(v)
         case .strLit(let s): lexer.advance(); return .strLit(s)
-        case .ident(let n): lexer.advance(); return n == "NULL" ? .intLit(0) : .ident(n)
-        case .op(let o) where o == "(":
+        case .ident(let n):
             lexer.advance()
-            if isTypeStart() { let t = try parseType(); try lexer.expectOp(")"); return .cast(t, try parseUnary()) }
-            let e = try tryParseExpr(); try lexer.expectOp(")"); return e
-        default: throw CInterpreterError.parseError("unexpected token at line \(lexer.curLine())")
+
+// MARK: - Virtual Machine
+
+extension CInterpreter {
+    final class VM {
+        let interpreter: CInterpreter
+        let output: (String) -> Void
+        var steps = 0
+        var heap: [UInt8] = []
+        var heapUsed = 0
+        var vars: [[String: Int]] = [[:]]
+        var functions: [String: Function] = [:]
+        var returnValue: Int? = nil
+        var breaking = false
+        var continuing = false
+
+        init(interpreter: CInterpreter, output: @escaping (String) -> Void) {
+            self.interpreter = interpreter
+            self.output = output
+        }
+
+        func execute(_ functions: [Function]) throws {
+            for f in functions { self.functions[f.name] = f }
+            if let main = functions.first(where: { $0.name == "main" }) {
+                try call(main, [])
+            }
+        }
+
+        func checkSteps() throws {
+            steps += 1
+            if steps > interpreter.maxSteps { throw CInterpreterError.timeout }
+        }
+
+        func alloc(_ bytes: Int) throws -> Int {
+            let p = heapUsed
+            heapUsed += bytes
+            while heap.count < heapUsed { heap.append(0) }
+            if heapUsed > interpreter.maxHeap { throw CInterpreterError.memoryLimit }
+            return p
+        }
+
+        func load(_ p: Int) throws -> Int {
+            guard p >= 0, p < heap.count else {
+                throw CInterpreterError.runtimeError("bad read at \(p)")
+            }
+            return Int(heap[p])
+        }
+
+        func load32(_ p: Int) throws -> Int {
+            var v = 0
+            for i in 0..<4 { v |= (try load(p + i)) << (i * 8) }
+            return v
+        }
+
+        func store(_ p: Int, _ v: Int) throws {
+            guard p >= 0, p < heap.count else {
+                throw CInterpreterError.runtimeError("bad write at \(p)")
+            }
+            heap[p] = UInt8(v & 0xFF)
+        }
+
+        func store32(_ p: Int, _ v: Int) throws {
+            for i in 0..<4 { try store(p + i, (v >> (i * 8)) & 0xFF) }
+        }
+
+        func lookup(_ name: String) throws -> Int {
+            if let v = vars.last?[name] { return v }
+            throw CInterpreterError.runtimeError("undefined variable '\(name)'")
+
+// MARK: - VM: statement execution
+
+extension CInterpreter.VM {
+    fileprivate func exec(_ s: Stmt) throws {
+        checkSteps()
+        if returnValue != nil || breaking || continuing { return }
+        switch s {
+        case .expr(let e): _ = try eval(e)
+        case .decl(let t, let n, let ini):
+            let v = try ini.map { try eval($0) } ?? 0
+            set(n, v); _ = t
+        case .block(let ss):
+            for s in ss {
+                try exec(s)
+                if returnValue != nil || breaking || continuing { break }
+            }
+        case .if(let c, let t, let e):
+            if try eval(c) != 0 { try exec(t) } else if let e = e { try exec(e) }
+        case .while(let c, let b):
+            while try eval(c) != 0 {
+                breaking = false
+                try exec(b)
+                if returnValue != nil { break }
+                if breaking { breaking = false; break }
+                if continuing { continuing = false }
+            }
+        case .for(let ini, let cond, let step, let body):
+            if let ini = ini { try exec(ini) }
+            while true {
+                if let c = cond, try eval(c) == 0 { break }
+                try exec(body)
+                if returnValue != nil { break }
+                if breaking { breaking = false; break }
+                if continuing { continuing = false }
+                if let st = step { _ = try eval(st) }
+            }
+        case .do(let body, let cond):
+            while true {
+                try exec(body)
+                if returnValue != nil { break }
+                if breaking { breaking = false; break }
+                if continuing { continuing = false }
+                if try eval(cond) == 0 { break }
+            }
+        case .return(let e):
+            returnValue = try e.map { try eval($0) } ?? 0
+        case .break: breaking = true
+        case .continue: continuing = true
+        }
+
+// MARK: - VM: expression evaluation
+
+extension CInterpreter.VM {
+    fileprivate func eval(_ e: Expr) throws -> Int {
+        checkSteps()
+        switch e {
+        case .intLit(let v): return v
+        case .strLit(let s):
+            let p = heapUsed
+            let bytes = Array(s.utf8) + [0]
+            for b in bytes { try store(heapUsed, Int(b)); heapUsed += 1 }
+            return p
+        case .ident(let n):
+            if n == "NULL" { return 0 }
+            return try lookup(n)
+        case .unary(let op, let v):
+            let x = try eval(v)
+            switch op {
+            case "-": return -x
+            case "!": return x == 0 ? 1 : 0
+            case "~": return ~x
+            case "&": return x
+            case "*": return try load32(x)
+            case "++": try assign(valueOf(v), x + 1); return x + 1
+            case "--": try assign(valueOf(v), x - 1); return x - 1
+            default: throw CInterpreterError.runtimeError("unknown unary op \(op)")
+            }
+        case .binary(let op, let l, let r):
+            switch op {
+            case "&&": return try eval(l) != 0 && eval(r) != 0 ? 1 : 0
+            case "||": return try eval(l) != 0 || eval(r) != 0 ? 1 : 0
+            default:
+                let a = try eval(l), b = try eval(r)
+                return try arith(op, a, b)
+            }
+        case .assign(let op, let target, let value):
+            let v = try eval(value)
+            if op == "=" {
+                try assignExpr(target, v)
+            } else {
+                let a = try eval(target)
+                try assignExpr(target, try arith(String(op.prefix(1)), a, v))
+            }
+            return v
+        case .call(let name, let args):
+            return try callFn(name, args)
+        case .addr(let e): return try eval(e)
+        case .deref(let e): return try load32(try eval(e))
+        case .index(let base, let idx):
+            let b = try eval(base), i = try eval(idx)
+            return try load32(b + i * 4)
+        case .cast(let t, let v):
+            let x = try eval(v)
+            if t.contains("char") { return x & 0xFF }
+            return x
+        case .sizeof: return 4
         }
     }
 
-    fileprivate func isTypeStart() -> Bool {
+    private func arith(_ op: String, _ a: Int, _ b: Int) throws -> Int {
+        switch op {
+        case "+": return a + b
+        case "-": return a - b
+        case "*": return a * b
+        case "/": return b == 0 ? 0 : a / b
+        case "%": return b == 0 ? 0 : a % b
+        case "==": return a == b ? 1 : 0
+        case "!=": return a != b ? 1 : 0
+        case "<":  return a <  b ? 1 : 0
+        case ">":  return a >  b ? 1 : 0
+        case "<=": return a <= b ? 1 : 0
+        case ">=": return a >= b ? 1 : 0
+        case "&":  return a & b
+        case "|":  return a | b
+        case "^":  return a ^ b
+        case "<<": return a << b
+        case ">>": return a >> b
+        default: throw CInterpreterError.runtimeError("unknown binary op '\(op)'")
+        }
+    }
+
+    private func valueOf(_ e: Expr) -> String {
+        if case .ident(let n) = e { return n }
+        return ""
+    }
+
+    private func assignExpr(_ target: Expr, _ v: Int) throws {
+        switch target {
+        case .ident(let n): try assign(n, v)
+        case .deref(let p): try store32(try eval(p), v)
+
+// MARK: - VM: built-in functions
+
+extension CInterpreter.VM {
+    fileprivate func callFn(_ name: String, _ args: [Expr]) throws -> Int {
+        checkSteps()
+        let argVals = try args.map { try eval($0) }
+        switch name {
+        case "printf": return try printf(args)
+        case "putchar":
+            if let c = argVals.first {
+                output(String(UnicodeScalar(UInt8(c & 0xFF))))
+            }
+            return 1
+        case "puts":
+            if let p = argVals.first { output(readString(p) + "\n") }
+            return 0
+        case "malloc": return try alloc(argVals.first ?? 0)
+        case "calloc":
+            let n = argVals.count > 0 ? argVals[0] : 0
+            let s = argVals.count > 1 ? argVals[1] : 0
+            return try alloc(n * s)
+        case "free": return 0
+        case "strlen": return argVals.first.map { readString($0).count } ?? 0
+        case "strcpy":
+            if argVals.count >= 2 {
+                let src = readString(argVals[1])
+                for (i, b) in Array(src.utf8 + [0]).enumerated() {
+                    try store(argVals[0] + i, Int(b))
+                }
+                return argVals[0]
+            }
+            return 0
+        case "strcmp":
+            if argVals.count >= 2 {
+                let a = readString(argVals[0]), b = readString(argVals[1])
+                if a < b { return -1 } else if a > b { return 1 } else { return 0 }
+            }
+            return 0
+        case "memset":
+            if argVals.count >= 3 {
+                for i in 0..<argVals[2] { try store(argVals[0] + i, argVals[1] & 0xFF) }
+                return argVals[0]
+            }
+            return 0
+        case "memcpy":
+            if argVals.count >= 3 {
+                for i in 0..<argVals[2] {
+                    let b = try load(argVals[1] + i)
+                    try store(argVals[0] + i, b)
+                }
+                return argVals[0]
+            }
+            return 0
+        case "atoi":
+            if let p = argVals.first {
+                return Int(readString(p).trimmingCharacters(in: .whitespaces)) ?? 0
+            }
+            return 0
+        case "abs": return argVals.first.map { abs($0) } ?? 0
+        case "getchar": return 0
+        case "exit":
+            throw CInterpreterError.runtimeError("exit(\(argVals.first ?? 0))")
+        default: break
+        }
+        if let f = functions[name] {
+            try call(f, argVals)
+            if let rv = returnValue {
+                returnValue = nil
+                return rv
+            }
+            return 0
+        }
+        throw CInterpreterError.runtimeError("undefined function '\(name)'")
+    }
+
+// MARK: - VM: printf
+
+extension CInterpreter.VM {
+    fileprivate func printf(_ args: [Expr]) throws -> Int {
+        guard let fmtExpr = args.first else { return 0 }
+        let fmt = try stringOf(fmtExpr)
+        var argIdx = 1
+        var out = ""
+        var i = 0
+        while i < fmt.count {
+            let c = fmt[fmt.index(fmt.startIndex, offsetBy: i)]
+            if c == "%" && i + 1 < fmt.count {
+                let next = fmt[fmt.index(fmt.startIndex, offsetBy: i + 1)]
+                let spec = String(next)
+                if argIdx < args.count {
+                    let v = try eval(args[argIdx]); argIdx += 1
+                    switch spec {
+                    case "d", "i": out += String(v)
+                    case "u": out += String(max(0, v))
+                    case "c": out += String(UnicodeScalar(v & 0xFF) ?? "?")
+                    case "x": out += String(v, radix: 16)
+                    case "s": out += readString(v)
+                    case "%": out += "%"
+                    default: out += String(v)
+                    }
+                } else { out += "%\(spec)" }
+                i += 2
+            } else {
+                out += String(c); i += 1
+            }
+        }
+        output(out)
+        return out.count
+    }
+
+    private func stringOf(_ e: Expr) throws -> String {
+        if case .strLit(let s) = e { return s }
+        let p = try eval(e)
+        return readString(p)
+    }
+}
+
+    private func readString(_ p: Int) -> String {
+        var s = ""
+        var i = p
+        while i < heap.count, heap[i] != 0 {
+            s += String(UnicodeScalar(heap[i]))
+            i += 1
+        }
+        return s
+    }
+}
+        case .index(let base, let idx):
+            let b = try eval(base), i = try eval(idx)
+            try store32(b + i * 4, v)
+        default: throw CInterpreterError.runtimeError("invalid assignment target")
+        }
+    }
+}
+    }
+}
+        }
+
+        func assign(_ name: String, _ v: Int) throws {
+            if vars.last?[name] != nil { vars[vars.count - 1][name] = v; return }
+            vars[vars.count - 1][name] = v
+        }
+
+        func set(_ name: String, _ v: Int) { vars[vars.count - 1][name] = v }
+
+        private func call(_ fn: Function, _ args: [Int]) throws {
+            var frame: [String: Int] = [:]
+            for (i, p) in fn.params.enumerated() { frame[p.1] = i < args.count ? args[i] : 0 }
+            vars.append(frame)
+            try exec(fn.body)
+            vars.removeLast()
+        }
+    }
+}
+            return n == "NULL" ? .intLit(0) : .ident(n)
+        case .op(let o) where o == "(":
+            lexer.advance()
+            if isTypeStart() {
+                let t = try parseType()
+                try lexer.expectOp(")")
+                return .cast(t, try parseUnary())
+            }
+            let e = try tryParseExpr()
+            try lexer.expectOp(")")
+            return e
+        default:
+            throw CInterpreterError.parseError("unexpected token at line \(lexer.curLine())")
+        }
+    }
+
+    private func isTypeStart() -> Bool {
         if case .keyword(let k) = lexer.current() { return ["int","char","void"].contains(k) }
         return false
     }
 
-    fileprivate func bin(_ next: () throws -> Expr, _ ops: [String]) rethrows -> Expr {
+    private func bin(_ next: () throws -> Expr, _ ops: [String]) throws -> Expr {
         var l = try next()
         while case .op(let o) = lexer.current(), ops.contains(o) {
             lexer.advance(); l = .binary(o, l, try next())
         }
         return l
-    }
-}
-
-    fileprivate func isDeclStart() -> Bool {
-        if case .keyword(let k) = lexer.current() { return ["int","char","void"].contains(k) }
-        return false
-    }
-
-    fileprivate func matchOp(_ s: String) -> Bool {
-        if case .op(let o) = lexer.current(), o == s { lexer.advance(); return true }
-        return false
-    }
-}
-        }
-
-        private func parseType() throws -> String {
-            var t = ""
-            if case .keyword(let k) = lexer.current(), ["int","char","void"].contains(k) {
-                t = k; lexer.advance()
-            } else if case .ident(let n) = lexer.current() {
-                t = n; lexer.advance()
-            } else {
-                throw CInterpreterError.parseError("expected type at line \(lexer.curLine())")
-            }
-            while case .op(let o) = lexer.current(), o == "*" { t += "*"; lexer.advance() }
-            return t
-        }
-
-        private func parseBlock() throws -> Stmt {
-            try lexer.expectOp("{")
-            var stmts: [Stmt] = []
-            while case .op(let o) = lexer.current(), o != "}" {
-                stmts.append(try parseStmt())
-            }
-            try lexer.expectOp("}")
-            return .block(stmts)
-        }
-    }
-}
-        func current() -> Token { (pos < tokens.count) ? tokens[pos] : .eof }
-        func advance() -> Token { let t = current(); if pos < tokens.count { pos += 1 }; return t }
-        func curLine() -> Int { line }
-        func expectOp(_ s: String) throws {
-            if case .op(let o) = current(), o == s { advance() }
-            else { throw CInterpreterError.parseError("expected '\(s)' at line \(line)") }
-        }
-        func expectKeyword(_ s: String) throws {
-            if case .keyword(let k) = current(), k == s { advance() }
-            else { throw CInterpreterError.parseError("expected '\(s)' at line \(line)") }
-        }
-    }
-}
-
-private extension Character {
-    var isHexDigit: Bool {
-        isNumber || ("a"..."f").contains(lowercased().first ?? "\0")
-    }
-}
-            exitCode = 1
-        } catch {
-            stderr = "Error: \(error.localizedDescription)"
-            exitCode = 1
-        }
-        let duration = Int(start.timeIntervalSinceNow * -1000)
-        if stdout.count > maxOutput {
-            stdout = String(stdout.prefix(maxOutput)) + "\n... (truncated)"
-        }
-        return CInterpreterResult(stdout: stdout, stderr: stderr, exitCode: exitCode, durationMs: duration, steps: steps)
     }
 }
