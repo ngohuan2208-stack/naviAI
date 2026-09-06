@@ -91,7 +91,9 @@ final class LANWebSocket {
                         contentContext: .finalMessage,
                         isComplete: true,
                         completion: .contentProcessed { _ in })
-// MARK: Receiving
+    }
+
+    // MARK: Receiving
 
     private func receive() {
         connection.receive(minimumIncompleteLength: 1, maximumLength: 64 * 1024) { [weak self] data, _, isComplete, error in
@@ -249,4 +251,3 @@ struct LANHTTPRequest {
         headers[name.lowercased()]
     }
 }
-    }

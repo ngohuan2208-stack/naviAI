@@ -162,6 +162,8 @@ enum HTTPReason {
         default: return "Unknown"
         }
     }
+}
+
 // MARK: - LAN Control Server
 
 /// The LAN server that turns the iPhone into "Navi + LAN server" and lets PCs,
