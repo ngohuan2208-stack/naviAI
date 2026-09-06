@@ -916,17 +916,4 @@ var page: [String: Any] = [:]
     }
 }
 
-private extension ActiveTaskCard {
-    func toRemoteJSON() -> [String: Any] {
-        [
-            "title": title,
-            "continuation": continuation,
-            "mode": mode,
-            "isRunning": isRunning,
-            "currentStep": currentStep,
-            "progress": progress,
-            "completedSteps": completedSteps,
-            "totalSteps": totalSteps
-        ]
-    }
-}
+

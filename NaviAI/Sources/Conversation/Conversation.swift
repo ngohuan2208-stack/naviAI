@@ -52,7 +52,7 @@ struct Conversation: Codable, Identifiable, Equatable {
     }
 }
 
-struct ConversationSnapshot: Codable, Equatable {
+struct ConversationSnapshot: Equatable {
     var conversationID: UUID
     var apiHistory: [OutboundItem]
 }

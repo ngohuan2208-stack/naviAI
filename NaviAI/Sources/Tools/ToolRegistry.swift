@@ -7,6 +7,23 @@ struct ToolDefinition {
     let required: [String]
 }
 
+enum ToolValidationError: Error, CustomStringConvertible {
+    case unknownTool(String)
+    case invalidArguments(String)
+    case missingArgument(key: String, name: String)
+
+    var description: String {
+        switch self {
+        case .unknownTool(let name):
+            return "Unknown tool: \(name)"
+        case .invalidArguments(let name):
+            return "Invalid arguments for \(name)"
+        case .missingArgument(let key, let name):
+            return "Missing required argument '\(key)' for \(name)"
+        }
+    }
+}
+
 @MainActor
 final class ToolRegistry {
 
@@ -28,17 +45,17 @@ final class ToolRegistry {
 
     var allNames: [String] { Array(definitions.keys).sorted() }
 
-    func validate(name: String, argumentsJSON: String) -> Result<ToolDefinition, String> {
+    func validate(name: String, argumentsJSON: String) -> Result<ToolDefinition, ToolValidationError> {
         guard let def = definitions[name] else {
-            return .failure("Unknown tool: \(name)")
+            return .failure(.unknownTool(name))
         }
         if def.required.isEmpty { return .success(def) }
         guard let data = argumentsJSON.data(using: .utf8),
               let obj = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any] else {
-            return .failure("Invalid arguments for \(name)")
+            return .failure(.invalidArguments(name))
         }
         for key in def.required where obj[key] == nil {
-            return .failure("Missing required argument '\(key)' for \(name)")
+            return .failure(.missingArgument(key: key, name: name))
         }
         return .success(def)
     }
