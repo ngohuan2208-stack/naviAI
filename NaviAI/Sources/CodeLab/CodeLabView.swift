@@ -15,7 +15,7 @@ struct CodeLabView: View {
                     }
                 }
                 .pickerStyle(.segmented)
-                .onChange(of: store.currentLanguage) { _, newLang in
+                .onChange(of: store.currentLanguage) { newLang in
                     store.changeLanguage(newLang)
                 }
 
