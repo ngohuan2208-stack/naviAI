@@ -24,7 +24,6 @@ final class WebCoordinator: NSObject {
             injectionTime: .atDocumentStart,
             forMainFrameOnly: true
         ))
-        // DevTools bridge: console / exceptions / resource timing → DevToolsStore.
         controller.addUserScript(WKUserScript(
             source: DevToolsJavaScript.source,
             injectionTime: .atDocumentStart,

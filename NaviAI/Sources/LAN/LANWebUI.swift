@@ -12,6 +12,7 @@ enum LANWebUI {
     <link rel="stylesheet" href="/app.css">
     </head>
     <body>
+      <div id="waterfall" aria-hidden="true"><i style="left:4%;animation-duration:8s"></i><i style="left:13%;animation-duration:11s;animation-delay:2s"></i><i style="left:22%;animation-duration:9s;animation-delay:4s"></i><i style="left:31%;animation-duration:12s;animation-delay:1s"></i><i style="left:40%;animation-duration:7s;animation-delay:3s"></i><i style="left:49%;animation-duration:10s;animation-delay:5s"></i><i style="left:58%;animation-duration:8.5s;animation-delay:2.5s"></i><i style="left:67%;animation-duration:11.5s;animation-delay:.5s"></i><i style="left:76%;animation-duration:9.5s;animation-delay:3.5s"></i><i style="left:85%;animation-duration:12.5s;animation-delay:1.5s"></i><i style="left:93%;animation-duration:10.5s;animation-delay:4.5s"></i></div>
       <div id="connbar" class="conn sync"><span id="conn-dot" class="dot"></span><span id="conn-text">Connecting…</span></div>
       <aside id="sidebar">
         <div class="brand"><span class="logo">◈</span> Navi<span>AI</span></div>
@@ -177,9 +178,17 @@ extension LANWebUI {
     .feedline{display:flex; gap:8px; align-items:baseline;}
     .feedline .time{color:var(--muted); font-size:11px; min-width:60px;}
     #shot-img{max-width:100%; border-radius:10px; border:1px solid var(--line);}
+    #waterfall{position:fixed; inset:0; z-index:-1; pointer-events:none; overflow:hidden;}
+    #waterfall i{position:absolute; top:-70px; width:2px; height:64px; border-radius:2px; background:linear-gradient(180deg, rgba(122,162,255,0), rgba(122,162,255,.45)); animation:fall linear infinite;}
+    @keyframes fall{to{transform:translateY(115vh);}}
     @media (max-width:700px){
-      body{grid-template-columns:1fr; grid-template-areas:"conn" "main";}
-      #sidebar{display:none;}
+      body{grid-template-columns:1fr; grid-template-rows:auto auto 1fr; grid-template-areas:"conn" "side" "main";}
+      #sidebar{display:flex; flex-direction:row; align-items:center; border-right:none; border-bottom:1px solid var(--line); overflow-x:auto;}
+      .brand{padding:10px 12px; font-size:16px; white-space:nowrap;}
+      nav{flex-direction:row; padding:6px;}
+      nav a{padding:7px 10px; white-space:nowrap;}
+      .side-foot{display:none;}
+      #main{padding:14px 14px 60px;}
     }
     """
 }
@@ -229,7 +238,6 @@ extension LANWebUI {
     }
 
     function scheduleReconnect() {
-      // Exponential backoff with jitter, capped at 30s.
       const delay = Math.min(1000 * Math.pow(2, reconnectAttempt), 30000) + Math.random() * 500;
       reconnectAttempt++;
       setConn('off', 'Reconnecting in ' + Math.round(delay / 1000) + 's…');
@@ -314,14 +322,12 @@ extension LANWebUI {
       const a = s.agent || {};
       const act = s.activity || {};
 
-      // Connection / foot
       const footParts = [];
       if (meta.deviceName) footParts.push(meta.deviceName);
       footParts.push(meta.clients + ' client' + (meta.clients === 1 ? '' : 's'));
       if (b.title || b.url) footParts.push(shortHost(b.url) || '');
       $('side-foot').textContent = footParts.filter(Boolean).join(' · ');
 
-      // Browser
       const pageTitle = b.title || (p.title || 'No page');
       $('page-meta').textContent = (b.isLoading ? '⏳ ' : '') + (p.readyState && p.readyState !== 'complete' ? 'loading… ' : '') + pageTitle + '\n' + (b.url || 'about:blank');
       if ($('url-input').value !== b.url && document.activeElement !== $('url-input')) {
@@ -330,7 +336,6 @@ extension LANWebUI {
       $('btn-back').disabled = !b.canGoBack;
       $('btn-fwd').disabled = !b.canGoForward;
 
-      // Page context card
       let pageText = '';
       if (p.title) pageText += p.title + '\n';
       if (p.readyState) pageText += 'State: ' + p.readyState + ' · ScrollY: ' + Math.round(p.scrollY || 0) + 'px · Viewport: ' + Math.round(p.viewportWidth || 0) + 'x' + Math.round(p.viewportHeight || 0) + '\n';
@@ -340,7 +345,6 @@ extension LANWebUI {
       if (p.inputCount !== undefined) pageText += '\n\nInputs: ' + p.inputCount + ' · Forms: ' + (p.formCount || 0);
       $('page-view').textContent = pageText || 'No readable page context yet.';
 
-      // Tabs
       const tabs = b.tabs || [];
       if (tabs.length) {
         $('tab-list').innerHTML = tabs.map(t => {
@@ -353,7 +357,6 @@ extension LANWebUI {
         $('tab-list').textContent = '—';
       }
 
-      // Agent / task
       const cur = act.current || {};
       const name = (cur.title || a.goal || 'No task');
       const running = cur.isRunning || a.isRunning;
@@ -374,7 +377,6 @@ extension LANWebUI {
       $('agent-task').textContent = task;
       $('chat-last').textContent = 'Status: ' + (a.status || 'idle') + (running ? ' (running)' : '');
 
-      // Activity feed
       const feed = act.feed || [];
       if (feed.length) {
         $('activity-list').innerHTML = feed.slice().reverse().map(it => {
@@ -385,11 +387,9 @@ extension LANWebUI {
         $('activity-list').textContent = '—';
       }
 
-      // Home
       $('home-sub').textContent = 'Browsing ' + shortHost(b.url || '…') + ' on ' + (meta.deviceName || 'iPhone');
       $('home-state').textContent = 'Title: ' + pageTitle + '\nURL: ' + (b.url || '—') + '\nAgent: ' + (running ? '● Running — ' + name : '○ idle');
 
-      // Settings
       const rows = [];
       rows.push(['Navi device', meta.deviceName || '—']);
       rows.push(['App version', meta.appVersion || '—']);
@@ -405,13 +405,24 @@ extension LANWebUI {
       return String(v == null ? '' : v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
     }
 
-    // ---- Actions ----
     function openYoutube()   { cmd('navigate', { url: 'https://www.youtube.com' }); }
     function openFacebook()  { cmd('navigate', { url: 'https://www.facebook.com' }); }
     function openTiktok()    { cmd('navigate', { url: 'https://www.tiktok.com' }); }
     function openNews()      { cmd('search', { query: 'breaking news today' }); }
     function openSearch()    { cmd('navigate', { url: 'https://duckduckgo.com' }); }
-    function goAddress()     { cmd('navigate', { url: $('url-input').value.trim() || 'https://duckduckgo.com' }); }
+    function goAddress() {
+      let v = $('url-input').value.trim();
+      if (v) {
+        if (!/^https?:\\/\\//i.test(v)) {
+          v = /^[\\w-]+(\\.[\\w-]+)+/.test(v)
+            ? 'https://' + v
+            : 'https://duckduckgo.com/?q=' + encodeURIComponent(v);
+        }
+      } else {
+        v = 'https://duckduckgo.com';
+      }
+      cmd('navigate', { url: v });
+    }
     function scrollDir(dy)   { cmd('scroll', { dy: dy }); }
     function startTaskFromChat() {
       const goal = $('chat-input').value.trim();
@@ -434,7 +445,6 @@ extension LANWebUI {
       }
     }
 
-    // ---- Navigation ----
     document.querySelectorAll('nav a').forEach(a => {
       a.addEventListener('click', () => {
         document.querySelectorAll('nav a').forEach(x => x.classList.remove('active'));

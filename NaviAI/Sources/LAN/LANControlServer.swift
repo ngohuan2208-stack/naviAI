@@ -193,6 +193,7 @@ final class LANControlServer: ObservableObject {
     private var startupDate = Date()
     private var lastBroadcastHash = ""
     private var pagePollDate = Date.distantPast
+    private var listenerRetry = 0
     private var connectionTasks: [UUID: Task<Void, Never>] = [:]
 
     private init() {}
@@ -236,22 +237,23 @@ final class LANControlServer: ObservableObject {
                         self.status = .running
                         self.serverURL = self.computeDisplayURL()
                         self.lastError = nil
+                        self.listenerRetry = 0
                         self.startPolling()
-                        // Always have a fresh PIN available so the web client
-                        // can pair immediately without a dead end.
                         if LANPairing.shared.pinExpiresAt == nil {
                             LANPairing.shared.generatePIN()
                         }
                     case .waiting(let error):
-                        // iOS may park the listener in .waiting while the
-                        // Local Network permission dialog is pending. Do not
-                        // stay silent — surface it so the UI is not stuck on
-                        // "Starting…" forever.
                         self.lastError = Self.friendlyError(error, waiting: true)
                     case .failed(let error):
                         let message = Self.friendlyError(error, waiting: false)
-                        self.status = .failed(message)
                         self.lastError = message
+                        if self.listenerRetry < 1 {
+                            self.listenerRetry += 1
+                            self.status = .starting
+                            self.restartListener()
+                        } else {
+                            self.status = .failed(message)
+                        }
                     case .cancelled:
                         self.status = .stopped
                     default:
@@ -293,6 +295,16 @@ final class LANControlServer: ObservableObject {
         listener = nil
         status = .stopped
         serverURL = ""
+    }
+
+    private func restartListener() {
+        listener?.cancel()
+        listener = nil
+        Task { @MainActor [weak self] in
+            try? await Task.sleep(nanoseconds: 1_500_000_000)
+            guard let self, let browser = self.browser else { return }
+            self.start(browser: browser)
+        }
     }
 
     func toggle(browser: BrowserStore) {
@@ -449,7 +461,6 @@ final class LANControlServer: ObservableObject {
     }
 
     private static func remoteKey(_ connection: NWConnection) -> String {
-        // NWConnection.endpoint is non-optional; match it directly.
         if case .hostPort(let host, _) = connection.endpoint {
             return "\(host)"
         }
@@ -765,8 +776,18 @@ extension LANControlServer {
     }
 
     private func pollOnce() async {
+        pruneStaleSessions()
         await refreshPageContextIfNeeded()
         broadcastStateIfChanged()
+    }
+
+    private func pruneStaleSessions() {
+        let cutoff = Date().addingTimeInterval(-120)
+        for session in sessions where session.lastSeen < cutoff {
+            session.socket?.close()
+            session.socket = nil
+            removeSession(session)
+        }
     }
 
     private func refreshPageContextIfNeeded() async {
