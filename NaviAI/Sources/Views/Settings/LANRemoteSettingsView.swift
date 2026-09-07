@@ -165,7 +165,7 @@ struct LANPairSheet: View {
     }
 
     private static func qrImage(for string: String) -> UIImage? {
-        guard let filter = CIFilter.qrCodeGenerator() else { return nil }
+        let filter = CIFilter.qrCodeGenerator()
         filter.message = Data(string.utf8)
         filter.correctionLevel = "M"
         guard let output = filter.outputImage else { return nil }
@@ -178,26 +178,21 @@ struct LANPairSheet: View {
 struct WaterfallEffect: View {
     var body: some View {
         TimelineView(.animation) { timeline in
-            Canvas { context, size in
-                let now = timeline.date.timeIntervalSinceReferenceDate
-                for index in 0..<14 {
-                    let seed = Double(index)
-                    let speed = 45 + seed * 11
-                    let height = 40 + (seed.truncatingRemainder(dividingBy: 3)) * 22
-                    let x = size.width * (0.04 + 0.07 * seed)
-                    let travel = size.height + height
-                    let y = (now * speed + seed * 97)
-                        .truncatingRemainder(dividingBy: travel) - height
-                    var path = Path()
-                    path.move(to: CGPoint(x: x, y: y))
-                    path.addLine(to: CGPoint(x: x, y: y + height))
-                    var copy = context
-                    copy.stroke(
-                        path,
-                        with: .color(.blue.opacity(0.16 + 0.1 * (seed.truncatingRemainder(dividingBy: 2)))),
-                        style: StrokeStyle(lineWidth: 2, lineCap: .round))
-                    copy.addFilter(.blur(radius: 0.5))
-                    copy.draw(path, with: .color(.blue.opacity(0.1)))
+            let t = timeline.date.timeIntervalSinceReferenceDate
+            GeometryReader { geo in
+                ZStack(alignment: .topLeading) {
+                    ForEach(0..<14, id: \.self) { index in
+                        let seed = Double(index)
+                        let speed = 45 + seed * 11
+                        let height = 40 + seed.truncatingRemainder(dividingBy: 3) * 22
+                        let travel = geo.size.height + height
+                        let y = (t * speed + seed * 97)
+                            .truncatingRemainder(dividingBy: travel) - height
+                        Capsule()
+                            .fill(Color.blue.opacity(0.10 + 0.08 * seed.truncatingRemainder(dividingBy: 2)))
+                            .frame(width: 2, height: height)
+                            .offset(x: geo.size.width * (0.04 + 0.07 * seed), y: y)
+                    }
                 }
             }
         }
